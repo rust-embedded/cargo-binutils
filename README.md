@@ -2,8 +2,10 @@
 
 > Cargo subcommands to invoke the LLVM tools shipped (\*) with the Rust toolchain
 
-(\*) Except that they won't be shipped with the Rust toolchain until rust-lang/rust#49584 is
+(\*) Except that they won't be shipped with the Rust toolchain until [rust-lang/rust#49584] is
 approved. So for now these subcommands invoke the LLVM tools in the user's $PATH.
+
+[rust-lang/rust#49584]: https://github.com/rust-lang/rust/issues/49584
 
 ## Features
 
