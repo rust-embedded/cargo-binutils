@@ -4,7 +4,7 @@ use std::process;
 
 fn main() {
     match cbu::run(|ctxt| ctxt.objdump(), true) {
-        Err(e) => eprintln!("Error: {:?}", e),
+        Err(e) => eprintln!("error: {}", e),
         Ok(ec) => process::exit(ec),
     }
 }

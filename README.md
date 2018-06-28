@@ -1,11 +1,6 @@
 # `cargo-binutils`
 
-> Cargo subcommands to invoke the LLVM tools shipped (\*) with the Rust toolchain
-
-(\*) Except that they won't be shipped with the Rust toolchain until [rust-lang/rust#49584] is
-approved. So for now these subcommands invoke the LLVM tools in the user's $PATH.
-
-[rust-lang/rust#49584]: https://github.com/rust-lang/rust/issues/49584
+> Cargo subcommands to invoke the LLVM tools shipped with the Rust toolchain
 
 ## Features
 
@@ -14,7 +9,9 @@ approved. So for now these subcommands invoke the LLVM tools in the user's $PATH
 ## Installation
 
 ``` console
-$ cargo install --git https://github.com/japaric/cargo-binutils
+$ cargo install cargo-binutils
+
+$ rustup component add llvm-tools
 ```
 
 ## Usage
@@ -31,34 +28,51 @@ is basically sugar for
 $ $(find $(rustc --print sysroot) -name llvm-$tool) ${args[@]}
 ```
 
+In the case of `cargo-objdump` the compilation target is passed as `-triple=$target` to
+`llvm-objdump`. `-triple` specifies to which architecture disassemble the object file to.
+
+You can get more information about the CLI of each tool by running `cargo $tool -- --help`.
+
+`cargo $tool` accepts the flags: `--target` and `--verbose` / `-v`. In verbose mode the `llvm-$tool`
+invocation will be printed to stderr.
+
+*Disclaimer* Note that `cargo-binutils` simply proxies the LLVM tools in the `llvm-tools` component
+and the Rust project makes no guarantee about the availability and the CLI of these tools -- i.e.
+the availability and CLI of these tools may change as new Rust releases are made.
+
 ## Examples
 
 ### `nm`
 
 ``` console
 $ cargo nm -- target/thumbv7m-none-eabi/release/app
-20000074 D _sgot
-20000074 D _sheap
-08000774 A _sidata
-20005000 R _stack_start
-08000400 R _stext
-08000000 R _svector_table
-20000008 B errno
-080005f4 T free
-20000014 d impure_data
-080005e4 T malloc
+0800040a T BusFault
+0800040a T DebugMonitor
+0800040a T DefaultHandler
+0800065e T HardFault
+0800040a T MemoryManagement
+0800040a T NonMaskableInt
+0800040a T PendSV
+0800040c T Reset
+0800040a T SVCall
+0800040a T SysTick
+0800040a T UsageFault
+08000408 T UserHardFault
+08000008 R __EXCEPTIONS
+08000040 R __INTERRUPTS
+08000004 R __RESET_VECTOR
+08000000 R __STACK_START
+```
 
+``` console
 $ cargo nm -- -print-size -size-sort target/thumbv7m-none-eabi/release/app
-080005e4 00000010 T malloc
-0800059c 00000020 T _sbrk
-08000750 00000020 T _sbrk_r
-080005c0 00000024 t app::main::h8f28ebffab84c118
-08000008 00000038 R EXCEPTIONS
-20000014 00000060 d impure_data
-08000604 00000098 T _free_r
-0800069c 000000b4 T _malloc_r
-08000400 0000018e t cortex_m_rt::reset_handler::h2bf1df29cde02662
-08000040 000003c0 r app::INTERRUPTS::h4487021ef2e905fd
+0800040a 00000002 T DefaultHandler
+08000408 00000002 T UserHardFault
+08000004 00000004 R __RESET_VECTOR
+08000400 00000008 T main
+08000008 00000038 R __EXCEPTIONS
+0800040c 00000252 T Reset
+08000040 000003c0 R __INTERRUPTS
 ```
 
 ### `objcopy`
@@ -67,7 +81,7 @@ $ cargo nm -- -print-size -size-sort target/thumbv7m-none-eabi/release/app
 $ cargo objcopy -- -O binary target/thumbv7m-none-eabi/release/app app.bin
 
 $ stat --printf="%s\n" app.bin
-8716
+1642
 ```
 
 ### `objdump`
@@ -77,12 +91,24 @@ $ cargo objdump -- -disassemble -no-show-raw-insn target/thumbv7m-none-eabi/debu
 target/thumbv7m-none-eabi/debug/app:    file format ELF32-arm-little
 
 Disassembly of section .text:
-cortex_m_rt::reset_handler::h69c216b4053d343c:
+main:
  8000400:       push    {r7, lr}
- 8000402:       mov     r7, sp
- 8000404:       sub     sp, #16
- 8000406:       movw    r0, #0
- 800040a:       movt    r0, #8192
+ 8000402:       bl      #608
+ 8000406:       b       #-8 <main+0x2>
+
+UserHardFault:
+ 8000408:       trap
+
+UsageFault:
+ 800040a:       trap
+
+Reset:
+ 800040c:       push.w  {r4, r5, r6, r7, r8, lr}
+ 8000410:       movw    r0, #0
+ 8000414:       movw    r2, #0
+ 8000418:       movt    r0, #8192
+ 800041c:       movt    r2, #8192
+(..)
 ```
 
 ### `size`
@@ -90,15 +116,25 @@ cortex_m_rt::reset_handler::h69c216b4053d343c:
 ``` console
 $ cargo size -- -A -x target/thumbv7m-none-eabi/release/app
 target/thumbv7m-none-eabi/release/app  :
-section              size         addr
-.vector_table       0x400    0x8000000
-.text               0x374    0x8000400
-.rodata                 0    0x8000774
-.bss                  0xc   0x20000000
-.data                0x68   0x2000000c
-.ARM.attributes      0x34            0
-.debug_frame        0x14c            0
-Total               0x968
+section               size         addr
+.vector_table        0x400    0x8000000
+.text                0x26a    0x8000400
+.rodata                0x2    0x800066a
+.data                    0   0x20000000
+.bss                     0   0x20000000
+.debug_str          0x107e            0
+.debug_loc           0x3e2            0
+.debug_abbrev        0x31b            0
+.debug_info         0x19f9            0
+.debug_ranges         0xe8            0
+.debug_macinfo         0x1            0
+.debug_pubnames      0x9ff            0
+.debug_pubtypes      0x8dd            0
+.ARM.attributes       0x2e            0
+.debug_frame          0x6c            0
+.debug_line          0x69b            0
+.debug_aranges        0x40            0
+Total               0x531a
 ```
 
 ## License

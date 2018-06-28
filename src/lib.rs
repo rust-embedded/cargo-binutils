@@ -1,12 +1,14 @@
-#![deny(warnings)]
+// #![deny(warnings)]
 
-extern crate failure;
 #[macro_use]
-extern crate serde_derive;
+extern crate failure;
 extern crate regex;
 extern crate rustc_demangle;
 extern crate rustc_version;
+#[macro_use]
+extern crate serde_derive;
 extern crate toml;
+extern crate walkdir;
 
 use std::borrow::Cow;
 use std::io::{self, Write};
@@ -14,9 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, str};
 
-use regex::{Captures, Regex};
-
 pub use failure::Error;
+use regex::{Captures, Regex};
+use walkdir::WalkDir;
 
 use config::Config;
 
@@ -28,12 +30,15 @@ pub type Result<T> = std::result::Result<T, failure::Error>;
 // TODO this should be some sort of initialize once, read-only singleton
 pub struct Context {
     /// Directory within the Rust sysroot where the llvm tools reside
-    bindir: Option<PathBuf>,
+    bindir: PathBuf,
     host: String,
     /// Regex to find mangled Rust symbols
     re: Regex,
     // NOTE `None` means that the target is the host
     target: Option<String>,
+    // Arguments after `--`
+    tool_args: Vec<String>,
+    verbose: bool,
 }
 
 impl Context {
@@ -45,19 +50,91 @@ impl Context {
         let meta = rustc_version::version_meta()?;
         let host = meta.host;
 
-        let mut target = config.and_then(|c| c.build.and_then(|b| b.target));
+        let mut args = env::args().skip(2);
+
+        let mut target = None;
+        let mut error = false;
+        let mut verbose = false;
+        while let Some(arg) = args.next() {
+            if arg == "--target" {
+                // duplicated target
+                if target.is_some() {
+                    error = true;
+                    break;
+                }
+
+                target = args.next();
+
+                // malformed invocation: `cargo nm --target`
+                if target.is_none() {
+                    error = true;
+                    break;
+                }
+            } else if arg.starts_with("--target=") {
+                // duplicated target
+                if target.is_some() {
+                    error = true;
+                    break;
+                }
+
+                target = arg.split('=').nth(1).map(|s| s.to_owned());
+
+                // malformed invocation: `cargo nm --target=`
+                if target.is_none() {
+                    error = true;
+                    break;
+                }
+            } else if arg == "--" {
+                break;
+            } else if arg == "--verbose" || arg == "-v" {
+                verbose = true;
+            } else {
+                error = true;
+                break;
+            }
+        }
+
+        let tool_args = args.collect();
+
+        if error {
+            bail!("malformed Cargo arguments");
+        }
+
+        target = target.or_else(|| config.and_then(|c| c.build.and_then(|b| b.target)));
 
         if target.as_ref() == Some(&host) {
             target = None;
         }
 
-        Ok(Context {
-            // TODO
-            bindir: None,
-            host,
-            target,
-            re: Regex::new(r#"_Z.+?E\b"#).expect("BUG: Malformed Regex"),
-        })
+        let sysroot = String::from_utf8(
+            Command::new("rustc")
+                .arg("--print")
+                .arg("sysroot")
+                .output()?
+                .stdout,
+        )?;
+
+        for entry in WalkDir::new(sysroot.trim()).into_iter() {
+            let entry = entry?;
+
+            if entry.file_name() == "llvm-size" {
+                let bindir = entry.path().parent().unwrap().to_owned();
+
+                return Ok(Context {
+                    bindir,
+                    host,
+                    re: Regex::new(r#"_Z.+?E\b"#).expect("BUG: Malformed Regex"),
+                    target,
+                    tool_args,
+                    verbose,
+                });
+            }
+        }
+
+        bail!(
+            "`llvm-tools` component is missing or empty. Install it with `rustup component add \
+             llvm-tools`"
+        );
     }
 
     /* Public API */
@@ -78,13 +155,21 @@ impl Context {
         objdump
     }
 
+    pub fn profdata(&self) -> Command {
+        self.tool("llvm-profdata")
+    }
+
     pub fn size(&self) -> Command {
         self.tool("llvm-size")
     }
 
+    pub fn tool_args(&self) -> &[String] {
+        &self.tool_args
+    }
+
     /* Private API */
-    fn bindir(&self) -> Option<&Path> {
-        self.bindir.as_ref().map(|p| &**p)
+    fn bindir(&self) -> &Path {
+        &self.bindir
     }
 
     fn demangle<'i>(&self, input: &'i str) -> Cow<'i, str> {
@@ -103,11 +188,7 @@ impl Context {
     }
 
     fn tool(&self, name: &str) -> Command {
-        if let Some(bindir) = self.bindir() {
-            Command::new(bindir.join(name))
-        } else {
-            Command::new(name)
-        }
+        Command::new(self.bindir().join(name))
     }
 }
 
@@ -119,14 +200,19 @@ where
     let ctxt = Context::new()?;
     let mut tool = tool(&ctxt);
 
-    tool.args(env::args().skip_while(|arg| arg != "--").skip(1));
+    tool.args(ctxt.tool_args());
+
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+
+    if ctxt.verbose {
+        writeln!(stderr, "{:?}", tool).ok();
+    }
 
     let output = tool.output()?;
 
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
-    let stderr = io::stderr();
-    let mut stderr = stderr.lock();
     let tool_stdout = if demangle {
         match ctxt.demangle(str::from_utf8(&output.stdout)?) {
             Cow::Borrowed(s) => Cow::Borrowed(s.as_bytes()),
