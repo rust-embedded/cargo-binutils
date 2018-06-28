@@ -36,6 +36,9 @@ pub struct Context {
     re: Regex,
     // NOTE `None` means that the target is the host
     target: Option<String>,
+    // Arguments after `--`
+    tool_args: Vec<String>,
+    verbose: bool,
 }
 
 impl Context {
@@ -47,7 +50,57 @@ impl Context {
         let meta = rustc_version::version_meta()?;
         let host = meta.host;
 
-        let mut target = config.and_then(|c| c.build.and_then(|b| b.target));
+        let mut args = env::args().skip(2);
+
+        let mut target = None;
+        let mut error = false;
+        let mut verbose = false;
+        while let Some(arg) = args.next() {
+            if arg == "--target" {
+                // duplicated target
+                if target.is_some() {
+                    error = true;
+                    break;
+                }
+
+                target = args.next();
+
+                // malformed invocation: `cargo nm --target`
+                if target.is_none() {
+                    error = true;
+                    break;
+                }
+            } else if arg.starts_with("--target=") {
+                // duplicated target
+                if target.is_some() {
+                    error = true;
+                    break;
+                }
+
+                target = arg.split('=').nth(1).map(|s| s.to_owned());
+
+                // malformed invocation: `cargo nm --target=`
+                if target.is_none() {
+                    error = true;
+                    break;
+                }
+            } else if arg == "--" {
+                break;
+            } else if arg == "--verbose" || arg == "-v" {
+                verbose = true;
+            } else {
+                error = true;
+                break;
+            }
+        }
+
+        let tool_args = args.collect();
+
+        if error {
+            bail!("malformed Cargo arguments");
+        }
+
+        target = target.or_else(|| config.and_then(|c| c.build.and_then(|b| b.target)));
 
         if target.as_ref() == Some(&host) {
             target = None;
@@ -70,8 +123,10 @@ impl Context {
                 return Ok(Context {
                     bindir,
                     host,
-                    target,
                     re: Regex::new(r#"_Z.+?E\b"#).expect("BUG: Malformed Regex"),
+                    target,
+                    tool_args,
+                    verbose,
                 });
             }
         }
@@ -108,6 +163,10 @@ impl Context {
         self.tool("llvm-size")
     }
 
+    pub fn tool_args(&self) -> &[String] {
+        &self.tool_args
+    }
+
     /* Private API */
     fn bindir(&self) -> &Path {
         &self.bindir
@@ -141,14 +200,19 @@ where
     let ctxt = Context::new()?;
     let mut tool = tool(&ctxt);
 
-    tool.args(env::args().skip_while(|arg| arg != "--").skip(1));
+    tool.args(ctxt.tool_args());
+
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+
+    if ctxt.verbose {
+        writeln!(stderr, "{:?}", tool).ok();
+    }
 
     let output = tool.output()?;
 
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
-    let stderr = io::stderr();
-    let mut stderr = stderr.lock();
     let tool_stdout = if demangle {
         match ctxt.demangle(str::from_utf8(&output.stdout)?) {
             Cow::Borrowed(s) => Cow::Borrowed(s.as_bytes()),

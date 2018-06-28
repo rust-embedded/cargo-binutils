@@ -2,8 +2,6 @@
 
 > Cargo subcommands to invoke the LLVM tools shipped with the Rust toolchain
 
-[rust-lang/rust#49584]: https://github.com/rust-lang/rust/issues/49584
-
 ## Features
 
 - All Rust symbols in the output of the LLVM tools are automatically demangled.
@@ -34,6 +32,9 @@ In the case of `cargo-objdump` the compilation target is passed as `-triple=$tar
 `llvm-objdump`. `-triple` specifies to which architecture disassemble the object file to.
 
 You can get more information about the CLI of each tool by running `cargo $tool -- --help`.
+
+`cargo $tool` accepts the flags: `--target` and `--verbose` / `-v`. In verbose mode the `llvm-$tool`
+invocation will be printed to stderr.
 
 *Disclaimer* Note that `cargo-binutils` simply proxies the LLVM tools in the `llvm-tools` component
 and the Rust project makes no guarantee about the availability and the CLI of these tools -- i.e.
