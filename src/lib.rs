@@ -1,12 +1,14 @@
-#![deny(warnings)]
+// #![deny(warnings)]
 
-extern crate failure;
 #[macro_use]
-extern crate serde_derive;
+extern crate failure;
 extern crate regex;
 extern crate rustc_demangle;
 extern crate rustc_version;
+#[macro_use]
+extern crate serde_derive;
 extern crate toml;
+extern crate walkdir;
 
 use std::borrow::Cow;
 use std::io::{self, Write};
@@ -14,9 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, str};
 
-use regex::{Captures, Regex};
-
 pub use failure::Error;
+use regex::{Captures, Regex};
+use walkdir::WalkDir;
 
 use config::Config;
 
@@ -28,7 +30,7 @@ pub type Result<T> = std::result::Result<T, failure::Error>;
 // TODO this should be some sort of initialize once, read-only singleton
 pub struct Context {
     /// Directory within the Rust sysroot where the llvm tools reside
-    bindir: Option<PathBuf>,
+    bindir: PathBuf,
     host: String,
     /// Regex to find mangled Rust symbols
     re: Regex,
@@ -51,13 +53,33 @@ impl Context {
             target = None;
         }
 
-        Ok(Context {
-            // TODO
-            bindir: None,
-            host,
-            target,
-            re: Regex::new(r#"_Z.+?E\b"#).expect("BUG: Malformed Regex"),
-        })
+        let sysroot = String::from_utf8(
+            Command::new("rustc")
+                .arg("--print")
+                .arg("sysroot")
+                .output()?
+                .stdout,
+        )?;
+
+        for entry in WalkDir::new(sysroot.trim()).into_iter() {
+            let entry = entry?;
+
+            if entry.file_name() == "llvm-size" {
+                let bindir = entry.path().parent().unwrap().to_owned();
+
+                return Ok(Context {
+                    bindir,
+                    host,
+                    target,
+                    re: Regex::new(r#"_Z.+?E\b"#).expect("BUG: Malformed Regex"),
+                });
+            }
+        }
+
+        bail!(
+            "`llvm-tools` component is missing or empty. Install it with `rustup component add \
+             llvm-tools`"
+        );
     }
 
     /* Public API */
@@ -78,13 +100,17 @@ impl Context {
         objdump
     }
 
+    pub fn profdata(&self) -> Command {
+        self.tool("llvm-profdata")
+    }
+
     pub fn size(&self) -> Command {
         self.tool("llvm-size")
     }
 
     /* Private API */
-    fn bindir(&self) -> Option<&Path> {
-        self.bindir.as_ref().map(|p| &**p)
+    fn bindir(&self) -> &Path {
+        &self.bindir
     }
 
     fn demangle<'i>(&self, input: &'i str) -> Cow<'i, str> {
@@ -103,11 +129,7 @@ impl Context {
     }
 
     fn tool(&self, name: &str) -> Command {
-        if let Some(bindir) = self.bindir() {
-            Command::new(bindir.join(name))
-        } else {
-            Command::new(name)
-        }
+        Command::new(self.bindir().join(name))
     }
 }
 
