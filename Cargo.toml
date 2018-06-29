@@ -1,7 +1,13 @@
 [package]
-name = "cargo-binutils"
-version = "0.1.0"
 authors = ["Jorge Aparicio <jorge@japaric.io>"]
+categories = ["command-line-utilities", "development-tools"]
+description = "Proxy for LLVM tools like llvm-nm, llvm-objdump and llvm-size"
+documentation = "https://github.com/japaric/cargo-binutils#cargo-binutils"
+keywords = ["llvm", "size", "objdump", "nm"]
+license = "MIT OR Apache-2.0"
+name = "cargo-binutils"
+repository = "https://github.com/japaric/cargo-binutils"
+version = "0.1.0"
 
 [dependencies]
 failure = "0.1.1"
