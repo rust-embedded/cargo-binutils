@@ -2,6 +2,8 @@
 
 > Cargo subcommands to invoke the LLVM tools shipped with the Rust toolchain
 
+**NOTE** This is **not** an official Rust project.
+
 ## Features
 
 - All Rust symbols in the output of the LLVM tools are automatically demangled.
