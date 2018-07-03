@@ -163,6 +163,10 @@ impl Context {
         self.tool("llvm-size")
     }
 
+    pub fn strip(&self) -> Command {
+        self.tool("llvm-strip")
+    }
+
     pub fn tool_args(&self) -> &[String] {
         &self.tool_args
     }

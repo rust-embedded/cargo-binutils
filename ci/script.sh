@@ -8,6 +8,7 @@ main() {
     cargo objdump -v -- -d target/release/cargo-objdump > /dev/null
     cargo objcopy -v -- -O binary target/release/cargo-objdump objdump.bin > /dev/null
     cargo size -v -- target/release/cargo-size
+    cargo strip -v -- target/release/cargo-strip
 }
 
 main

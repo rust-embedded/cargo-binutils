@@ -139,6 +139,18 @@ section               size         addr
 Total               0x531a
 ```
 
+### `strip`
+
+``` console
+$ stat --printf="%s\n" target/release/hello
+2120128
+
+$ cargo-strip -- target/release/hello
+
+$ stat --printf="%s\n" target/release/hello
+408048
+```
+
 ## License
 
 Licensed under either of
