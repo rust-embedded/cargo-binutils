@@ -117,7 +117,7 @@ impl Context {
         for entry in WalkDir::new(sysroot.trim()).into_iter() {
             let entry = entry?;
 
-            if entry.file_name() == "llvm-size" {
+            if entry.file_name() == &*exe("llvm-size") {
                 let bindir = entry.path().parent().unwrap().to_owned();
 
                 return Ok(Context {
@@ -188,7 +188,7 @@ impl Context {
     }
 
     fn tool(&self, name: &str) -> Command {
-        Command::new(self.bindir().join(name))
+        Command::new(self.bindir().join(&*exe(name)))
     }
 }
 
@@ -234,4 +234,14 @@ where
         stderr.write_all(&output.stderr)?;
         output.status.code().unwrap_or(1)
     })
+}
+
+#[cfg(target_os = "windows")]
+fn exe(name: &str) -> Cow<str> {
+    format!("{}.exe", name).into()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn exe(name: &str) -> Cow<str> {
+    name.into()
 }
