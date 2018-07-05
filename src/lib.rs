@@ -193,9 +193,10 @@ impl Context {
 }
 
 /// Shared entry point for the Cargo subcommands
-pub fn run<F>(tool: F, demangle: bool) -> Result<i32>
+pub fn run<F, G>(demangle: bool, tool: F, post_process: G) -> Result<i32>
 where
     F: FnOnce(&Context) -> Command,
+    G: for<'s> FnOnce(&Context, &'s str) -> Cow<'s, str>,
 {
     let ctxt = Context::new()?;
     let mut tool = tool(&ctxt);
@@ -215,18 +216,21 @@ where
     let mut stdout = stdout.lock();
     let tool_stdout = if demangle {
         match ctxt.demangle(str::from_utf8(&output.stdout)?) {
-            Cow::Borrowed(s) => Cow::Borrowed(s.as_bytes()),
-            Cow::Owned(s) => Cow::Owned(s.into_bytes()),
+            Cow::Borrowed(s) => Cow::Borrowed(s),
+            Cow::Owned(s) => Cow::Owned(s),
         }
     } else {
-        Cow::from(output.stdout)
+        Cow::from(String::from_utf8(output.stdout)?)
     };
+
+    let post_stdout = post_process(&ctxt, &*tool_stdout);
+
     Ok(if output.status.success() {
-        stdout.write_all(&*tool_stdout)?;
+        stdout.write_all(post_stdout.as_bytes())?;
         stderr.write_all(&output.stderr)?;
         0
     } else {
-        stdout.write_all(&*tool_stdout)?;
+        stdout.write_all(post_stdout.as_bytes())?;
         stderr.write_all(&output.stderr)?;
         output.status.code().unwrap_or(1)
     })
