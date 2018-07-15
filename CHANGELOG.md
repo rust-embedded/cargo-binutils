@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.1] - 2018-07-15
+
+### Added
+
+- `cargo-strip` subcommand
+
+### Changed
+
+- The `llvm-tools` component was renamed to `llvm-tools-preview`
+
 ## v0.1.0 - 2018-06-28
 
 Initial release
 
-[Unreleased]: https://github.com/japaric/cargo-binutils/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/japaric/cargo-binutils/compare/v0.1.1...HEAD
+[v0.1.1]: https://github.com/japaric/cargo-binutils/compare/v0.1.0...v0.1.1
