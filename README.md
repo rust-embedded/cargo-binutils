@@ -13,7 +13,7 @@
 ``` console
 $ cargo install cargo-binutils
 
-$ rustup component add llvm-tools
+$ rustup component add llvm-tools-preview
 ```
 
 ## Usage
@@ -38,9 +38,9 @@ You can get more information about the CLI of each tool by running `cargo $tool 
 `cargo $tool` accepts the flags: `--target` and `--verbose` / `-v`. In verbose mode the `llvm-$tool`
 invocation will be printed to stderr.
 
-*Disclaimer* Note that `cargo-binutils` simply proxies the LLVM tools in the `llvm-tools` component
-and the Rust project makes no guarantee about the availability and the CLI of these tools -- i.e.
-the availability and CLI of these tools may change as new Rust releases are made.
+*Disclaimer* Note that `cargo-binutils` simply proxies the LLVM tools in the `llvm-tools-preview`
+component and the Rust project makes no guarantee about the availability and the CLI of these tools
+-- i.e. the availability and CLI of these tools may change as new Rust releases are made.
 
 ## Examples
 

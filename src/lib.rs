@@ -132,8 +132,8 @@ impl Context {
         }
 
         bail!(
-            "`llvm-tools` component is missing or empty. Install it with `rustup component add \
-             llvm-tools`"
+            "`llvm-tools-preview` component is missing or empty. Install it with `rustup component \
+             add llvm-tools-preview`"
         );
     }
 
