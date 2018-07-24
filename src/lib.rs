@@ -146,12 +146,14 @@ impl Context {
         self.tool("llvm-objcopy")
     }
 
-    pub fn objdump(&self) -> Command {
+    pub fn objdump(&self, append_triple: bool) -> Command {
         let mut objdump = self.tool("llvm-objdump");
-        objdump.arg("-triple");
-        // NOTE assumes that the target name equates its "llvm-target" option. This may not be true
-        // for custom targets.
-        objdump.arg(self.target());
+        if append_triple {
+            objdump.arg("-triple");
+            // NOTE assumes that the target name equates its "llvm-target" option. This may not be true
+            // for custom targets.
+            objdump.arg(self.target());
+        }
         objdump
     }
 
