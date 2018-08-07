@@ -4,6 +4,7 @@ matrix:
   include:
     - env: TARGET=x86_64-unknown-linux-gnu
       rust: nightly
+      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
 
 before_install: set -e
 
@@ -22,6 +23,7 @@ before_cache:
 
 branches:
   only:
+    - master
     - staging
     - trying
 
