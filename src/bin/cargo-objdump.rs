@@ -2,12 +2,10 @@ extern crate cargo_binutils as cbu;
 
 use std::process;
 
+use cbu::Tool;
+
 fn main() {
-    match cbu::run(
-        true,
-        |ctxt| ctxt.objdump(),
-        |_ctxt, stdout| stdout.into(),
-    ) {
+    match cbu::run(Tool::Objdump) {
         Err(e) => eprintln!("error: {}", e),
         Ok(ec) => process::exit(ec),
     }
