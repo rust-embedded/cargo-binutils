@@ -23,25 +23,27 @@ pub fn demangle(bytes: &[u8]) -> Cow<[u8]> {
     }
 }
 
-// This pass turns the addresses in the output of `size` into hexadecimal format
+// This pass turns the addresses in the output of `size -A` into hexadecimal format
 pub fn size(bytes: &[u8]) -> Cow<[u8]> {
     if let Ok(text) = str::from_utf8(bytes) {
         let mut s = text
             .lines()
             .map(|line| -> Cow<str> {
-                let mut parts = line.split_whitespace();
-
-                if let Some((needle, addr)) = parts
+                match line
+                    .split_whitespace()
                     .nth(2)
                     .and_then(|part| part.parse::<u64>().ok().map(|addr| (part, addr)))
                 {
-                    let pos = line.rfind(needle).unwrap();
-                    let hex_addr = format!("{:#x}", addr);
-                    let start = pos + needle.as_bytes().len() - hex_addr.as_bytes().len();
+                    // the lines to postprocess have the form ".section_name 100 1024" where
+                    // the second number is the address
+                    Some((needle, addr)) if line.starts_with(".") => {
+                        let pos = line.rfind(needle).unwrap();
+                        let hex_addr = format!("{:#x}", addr);
+                        let start = pos + needle.as_bytes().len() - hex_addr.as_bytes().len();
 
-                    format!("{}{}", &line[..start], hex_addr).into()
-                } else {
-                    line.into()
+                        format!("{}{}", &line[..start], hex_addr).into()
+                    }
+                    _ => line.into(),
                 }
             }).collect::<Vec<_>>()
             .join("\n");
