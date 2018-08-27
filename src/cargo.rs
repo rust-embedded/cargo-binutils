@@ -29,7 +29,7 @@ pub fn artifact(
     match kind {
         Artifact::Bin(bin) => p.push(&*::exe(bin)),
         Artifact::Example(ex) => p.push(format!("examples/{}", ex)),
-        Artifact::Lib => p.push(format!("lib{}.rlib", crate_name)),
+        Artifact::Lib => p.push(format!("lib{}.rlib", crate_name.replace("-", "_"))),
     }
 
     Ok(p)
