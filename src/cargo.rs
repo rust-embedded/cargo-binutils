@@ -9,7 +9,7 @@ use toml;
 use {util, Artifact, Result};
 
 pub fn artifact(
-    kind: Artifact,
+    kind: &Artifact,
     release: bool,
     target_flag: Option<&str>,
     build_target: Option<&str>,
@@ -39,7 +39,7 @@ pub fn artifact(
 //
 // This also return the name of the crate
 pub fn target_dir() -> Result<(PathBuf, String)> {
-    let cwd = PathBuf::from(env::current_dir()?);
+    let cwd = env::current_dir()?;
 
     let crate_root = util::search(&cwd, "Cargo.toml")
         .ok_or_else(|| failure::err_msg("not in a Cargo project"))?;

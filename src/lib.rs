@@ -43,8 +43,8 @@ pub enum Tool {
 }
 
 impl Tool {
-    fn name(&self) -> &'static str {
-        match *self {
+    fn name(self) -> &'static str {
+        match self {
             Tool::Nm => "nm",
             Tool::Objcopy => "objcopy",
             Tool::Objdump => "objdump",
@@ -55,8 +55,8 @@ impl Tool {
     }
 
     // Whether this tool requires the project to be previously built
-    fn needs_build(&self) -> bool {
-        match *self {
+    fn needs_build(self) -> bool {
+        match self {
             Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Size | Tool::Strip => true,
             Tool::Profdata /* ? */ => false,
         }
@@ -108,7 +108,7 @@ impl Context {
             .unwrap_or(host);
         let cfg = rustc::Cfg::parse(&target)?;
 
-        for entry in WalkDir::new(sysroot.trim()).into_iter() {
+        for entry in WalkDir::new(sysroot.trim()) {
             let entry = entry?;
 
             if entry.file_name() == &*exe("llvm-size") {
@@ -319,7 +319,7 @@ pub fn run(tool: Tool) -> Result<i32> {
     let mut lltool = ctxt.tool(tool, ctxt.target());
 
     if let Some(kind) = artifact {
-        let artifact = cargo::artifact(kind, release, target_flag, ctxt.build_target())?;
+        let artifact = cargo::artifact(&kind, release, target_flag, ctxt.build_target())?;
 
         match tool {
             // for some tools we change the CWD (current working directory) and
