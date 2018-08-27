@@ -319,12 +319,22 @@ pub fn run(tool: Tool) -> Result<i32> {
     let mut lltool = ctxt.tool(tool, ctxt.target());
 
     if let Some(kind) = artifact {
-        lltool.arg(cargo::artifact(
-            kind,
-            release,
-            target_flag,
-            ctxt.build_target(),
-        )?);
+        let artifact = cargo::artifact(kind, release, target_flag, ctxt.build_target())?;
+
+        match tool {
+            // for some tools we change the CWD (current working directory) and
+            // make the artifact path relative. This makes the path that the
+            // tool will print easier to read. e.g. `libfoo.rlib` instead of
+            // `/home/user/rust/project/target/$T/debug/libfoo.rlib`.
+            Tool::Objdump | Tool::Nm | Tool::Size => {
+                lltool
+                    .current_dir(artifact.parent().unwrap())
+                    .arg(artifact.file_name().unwrap());
+            }
+            Tool::Objcopy | Tool::Profdata | Tool::Strip => {
+                lltool.arg(artifact);
+            }
+        }
     }
 
     lltool.args(&tool_args);
