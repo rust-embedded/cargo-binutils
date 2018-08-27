@@ -167,7 +167,7 @@ fn exe(name: &str) -> Cow<str> {
     name.into()
 }
 
-pub fn run(tool: Tool) -> Result<i32> {
+pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32> {
     let name = tool.name();
     let needs_build = tool.needs_build();
 
@@ -175,6 +175,12 @@ pub fn run(tool: Tool) -> Result<i32> {
     let about = format!(
         "Proxy for the `llvm-{}` tool shipped with the Rust toolchain.",
         name
+    );
+    let after_help = format!("\
+The specified <args>... will all be passed to the final tool invocation.
+
+To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
+        name, examples.unwrap_or("")
     );
     let app = app
         .about(&*about)
@@ -197,7 +203,7 @@ pub fn run(tool: Tool) -> Result<i32> {
                 .help("Use verbose output"),
         ).arg(Arg::with_name("--").short("-").hidden_short_help(true))
         .arg(Arg::with_name("args").multiple(true))
-        .after_help("The specified <args>... will all be passed to the final tool invocation.");
+        .after_help(&*after_help);
 
     let matches = if needs_build {
         app.arg(

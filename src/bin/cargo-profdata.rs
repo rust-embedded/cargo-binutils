@@ -5,7 +5,7 @@ use std::process;
 use cbu::Tool;
 
 fn main() {
-    match cbu::run(Tool::Profdata) {
+    match cbu::run(Tool::Profdata, None) {
         Err(e) => eprintln!("error: {}", e),
         Ok(ec) => process::exit(ec),
     }
