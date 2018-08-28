@@ -7,9 +7,10 @@ keywords = ["llvm", "size", "objdump", "nm"]
 license = "MIT OR Apache-2.0"
 name = "cargo-binutils"
 repository = "https://github.com/japaric/cargo-binutils"
-version = "0.1.1"
+version = "0.1.2"
 
 [dependencies]
+clap = "2.32.0"
 failure = "0.1.1"
 regex = "0.2.10"
 rustc-demangle = "0.1.7"
