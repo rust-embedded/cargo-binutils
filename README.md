@@ -9,6 +9,8 @@ This project is developed and maintained by the [Tools team][team].
 ## Features
 
 - All Rust symbols in the output of the LLVM tools are automatically demangled.
+- No need to pass to pass the path to the artifact as an argument if using the
+  tool in "build and inspect" mode.
 
 ## Installation
 
@@ -32,24 +34,35 @@ is basically sugar for
 $ $(find $(rustc --print sysroot) -name llvm-$tool) ${args[@]}
 ```
 
-In the case of `cargo-objdump` the compilation target is passed as `-triple=$target` to
-`llvm-objdump`. `-triple` specifies to which architecture disassemble the object file to.
+In the case of `cargo-objdump` the architecture of the compilation target is
+passed as `-arch-name=$target` to `llvm-objdump`. `-arch-name` specifies to
+which architecture disassemble the object file to.
 
-You can get more information about the CLI of each tool by running `cargo $tool -- --help`.
+You can get more information about the CLI of each tool by running `cargo $tool
+-- --help`.
 
-`cargo $tool` accepts the flags: `--target` and `--verbose` / `-v`. In verbose mode the `llvm-$tool`
-invocation will be printed to stderr.
+All the subcommands accept a `--verbose` / `-v` flag. In verbose mode the
+`llvm-$tool` invocation will be printed to stderr.
 
-*Disclaimer* Note that `cargo-binutils` simply proxies the LLVM tools in the `llvm-tools-preview`
-component and the Rust project makes no guarantee about the availability and the CLI of these tools
--- i.e. the availability and CLI of these tools may change as new Rust releases are made.
+Build and inspect mode: Some subcommands accept the flags: `--bin`, `--example`,
+`--lib`, `--target` and `--release`. These can be used to make the subcommand
+first build the respective binary, example or library and have the path to the
+artifact be automatically passed to the LLVM tool. This mode only works when the
+subcommand is used from within a Cargo project.
+
+*Disclaimer* Note that `cargo-binutils` simply proxies the LLVM tools in the
+`llvm-tools-preview` component and the Rust project makes no guarantee about the
+availability and the CLI of these tools -- i.e. the availability and CLI of
+these tools may change as new Rust releases are made.
 
 ## Examples
 
 ### `nm`
 
+List all symbols in an executable
+
 ``` console
-$ cargo nm -- target/thumbv7m-none-eabi/release/app
+$ cargo nm --bin app --release
 0800040a T BusFault
 0800040a T DebugMonitor
 0800040a T DefaultHandler
@@ -68,8 +81,10 @@ $ cargo nm -- target/thumbv7m-none-eabi/release/app
 08000000 R __STACK_START
 ```
 
+List all symbols in an executable sorted by size (smallest first).
+
 ``` console
-$ cargo nm -- -print-size -size-sort target/thumbv7m-none-eabi/release/app
+$ cargo nm --bin app --release -- -print-size -size-sort
 0800040a 00000002 T DefaultHandler
 08000408 00000002 T UserHardFault
 08000004 00000004 R __RESET_VECTOR
@@ -81,8 +96,10 @@ $ cargo nm -- -print-size -size-sort target/thumbv7m-none-eabi/release/app
 
 ### `objcopy`
 
+Transform the output of Cargo (ELF) into binary format.
+
 ``` console
-$ cargo objcopy -- -O binary target/thumbv7m-none-eabi/release/app app.bin
+$ cargo objcopy --bin app --release -- -O binary app.bin
 
 $ stat --printf="%s\n" app.bin
 1642
@@ -90,8 +107,10 @@ $ stat --printf="%s\n" app.bin
 
 ### `objdump`
 
+Disassemble a binary.
+
 ``` console
-$ cargo objdump -- -disassemble -no-show-raw-insn target/thumbv7m-none-eabi/debug/app
+$ cargo objdump --bin app --release -- -disassemble -no-show-raw-insn
 target/thumbv7m-none-eabi/debug/app:    file format ELF32-arm-little
 
 Disassembly of section .text:
@@ -117,8 +136,10 @@ Reset:
 
 ### `size`
 
+Print binary size in System V format
+
 ``` console
-$ cargo size -- -A -x target/thumbv7m-none-eabi/release/app
+$ cargo size --bin app --release -- -A -x
 target/thumbv7m-none-eabi/release/app  :
 section               size         addr
 .vector_table        0x400    0x8000000
@@ -143,14 +164,16 @@ Total               0x531a
 
 ### `strip`
 
+Strip all symbols from the build artifact
+
 ``` console
 $ stat --printf="%s\n" target/release/hello
-2120128
+4094240
 
-$ cargo-strip -- target/release/hello
+$ cargo-strip --bin hello --release -- -strip-all -O smaller-hello
 
-$ stat --printf="%s\n" target/release/hello
-408048
+$ stat --printf="%s\n" smaller-hello
+424432
 ```
 
 ## License
@@ -165,9 +188,9 @@ at your option.
 
 ### Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the
-work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any
-additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
 
 ## Code of Conduct
 
