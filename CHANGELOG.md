@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.2] - 2018-08-28
+
+### Added
+
+- Build and inspect mode. Some tools don't require that the path to the artifact
+  is passed as an argument in this mode. See README for more details.
+
+### Fixed
+
+- `cargo-objdump`: More robust detection of the target architecture. The
+  `riscv32imac-unknown-none-elf` is now properly supported.
+
+- More robust post processing. If the output of the LLVM tool can *not* be
+  processed then the original output is shown instead of just showing an error
+  message.
+
 ## [v0.1.1] - 2018-07-15
 
 ### Added
@@ -21,5 +37,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/japaric/cargo-binutils/compare/v0.1.1...HEAD
-[v0.1.1]: https://github.com/japaric/cargo-binutils/compare/v0.1.0...v0.1.1
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.1...HEAD
+[v0.1.2]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.1...v0.1.2
+[v0.1.1]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.0...v0.1.1
