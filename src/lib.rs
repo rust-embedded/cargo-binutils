@@ -23,14 +23,23 @@ use walkdir::WalkDir;
 use config::Config;
 
 mod config;
+mod llvm;
+mod rustc;
 
 pub type Result<T> = std::result::Result<T, failure::Error>;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Endian {
+    Little,
+    Big,
+}
 
 /// Execution context
 // TODO this should be some sort of initialize once, read-only singleton
 pub struct Context {
     /// Directory within the Rust sysroot where the llvm tools reside
     bindir: PathBuf,
+    cfg: rustc::Cfg,
     host: String,
     /// Regex to find mangled Rust symbols
     re: Regex,
@@ -114,6 +123,8 @@ impl Context {
                 .stdout,
         )?;
 
+        let cfg = rustc::Cfg::parse(target.as_ref().map(|s| &**s).unwrap_or(&host))?;
+
         for entry in WalkDir::new(sysroot.trim()).into_iter() {
             let entry = entry?;
 
@@ -121,6 +132,7 @@ impl Context {
                 let bindir = entry.path().parent().unwrap().to_owned();
 
                 return Ok(Context {
+                    cfg,
                     bindir,
                     host,
                     re: Regex::new(r#"_Z.+?E\b"#).expect("BUG: Malformed Regex"),
@@ -146,14 +158,12 @@ impl Context {
         self.tool("llvm-objcopy")
     }
 
-    pub fn objdump(&self, append_triple: bool) -> Command {
+    pub fn objdump(&self) -> Command {
         let mut objdump = self.tool("llvm-objdump");
-        if append_triple {
-            objdump.arg("-triple");
-            // NOTE assumes that the target name equates its "llvm-target" option. This may not be true
-            // for custom targets.
-            objdump.arg(self.target());
-        }
+        objdump.args(&[
+            "-arch-name",
+            llvm::arch_name(self.rustc_cfg(), self.target()),
+        ]);
         objdump
     }
 
@@ -187,6 +197,10 @@ impl Context {
     #[cfg(unused)]
     fn host(&self) -> &str {
         &self.host
+    }
+
+    fn rustc_cfg(&self) -> &rustc::Cfg {
+        &self.cfg
     }
 
     fn target(&self) -> &str {
