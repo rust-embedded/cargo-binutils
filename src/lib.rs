@@ -177,7 +177,7 @@ pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32> {
         name
     );
     let after_help = format!("\
-The specified <args>... will all be passed to the final tool invocation.
+The arguments specified *after* the `--` will be passed to the proxied tool invocation.
 
 To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         name, examples.unwrap_or("")
