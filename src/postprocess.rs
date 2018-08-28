@@ -36,7 +36,7 @@ pub fn size(bytes: &[u8]) -> Cow<[u8]> {
                 {
                     // the lines to postprocess have the form ".section_name 100 1024" where
                     // the second number is the address
-                    Some((needle, addr)) if line.starts_with(".") => {
+                    Some((needle, addr)) if line.starts_with('.') => {
                         let pos = line.rfind(needle).unwrap();
                         let hex_addr = format!("{:#x}", addr);
                         let start = pos + needle.as_bytes().len() - hex_addr.as_bytes().len();
