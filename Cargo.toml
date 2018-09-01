@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 name = "cargo-binutils"
 readme = "README.md"
 repository = "https://github.com/japaric/cargo-binutils"
-version = "0.1.2"
+version = "0.1.3"
 
 [dependencies]
 clap = "2.32.0"
