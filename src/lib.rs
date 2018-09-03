@@ -38,6 +38,7 @@ pub enum Tool {
     Objcopy,
     Objdump,
     Profdata,
+    Readobj,
     Size,
     Strip,
 }
@@ -49,6 +50,7 @@ impl Tool {
             Tool::Objcopy => "objcopy",
             Tool::Objdump => "objdump",
             Tool::Profdata => "profdata",
+            Tool::Readobj => "readobj",
             Tool::Size => "size",
             Tool::Strip => "strip",
         }
@@ -57,7 +59,7 @@ impl Tool {
     // Whether this tool requires the project to be previously built
     fn needs_build(self) -> bool {
         match self {
-            Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Size | Tool::Strip => true,
+            Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Size | Tool::Readobj | Tool::Strip => true,
             Tool::Profdata /* ? */ => false,
         }
     }
@@ -176,11 +178,13 @@ pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32> {
         "Proxy for the `llvm-{}` tool shipped with the Rust toolchain.",
         name
     );
-    let after_help = format!("\
+    let after_help = format!(
+        "\
 The arguments specified *after* the `--` will be passed to the proxied tool invocation.
 
 To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
-        name, examples.unwrap_or("")
+        name,
+        examples.unwrap_or("")
     );
     let app = app
         .about(&*about)
@@ -324,6 +328,17 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
     let mut lltool = ctxt.tool(tool, ctxt.target());
 
+    // Extra flags
+    match tool {
+        Tool::Readobj => {
+            // The default output style of `readobj` is JSON-like, which is not user friendly, so we
+            // change it to the human readable GNU style
+            lltool.arg("-elf-output-style=GNU");
+        }
+        Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Profdata | Tool::Size | Tool::Strip => {}
+    }
+
+    // Artifact
     if let Some(kind) = artifact {
         let artifact = cargo::artifact(&kind, release, target_flag, ctxt.build_target())?;
 
@@ -332,7 +347,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             // make the artifact path relative. This makes the path that the
             // tool will print easier to read. e.g. `libfoo.rlib` instead of
             // `/home/user/rust/project/target/$T/debug/libfoo.rlib`.
-            Tool::Objdump | Tool::Nm | Tool::Size => {
+            Tool::Objdump | Tool::Nm | Tool::Readobj | Tool::Size => {
                 lltool
                     .current_dir(artifact.parent().unwrap())
                     .arg(artifact.file_name().unwrap());
@@ -343,6 +358,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         }
     }
 
+    // User flags
     lltool.args(&tool_args);
 
     if verbose {
@@ -356,7 +372,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
     // post process output
     let pp_output = match tool {
-        Tool::Objdump | Tool::Nm => postprocess::demangle(&output.stdout),
+        Tool::Objdump | Tool::Nm | Tool::Readobj => postprocess::demangle(&output.stdout),
         Tool::Size => postprocess::size(&output.stdout),
         Tool::Objcopy | Tool::Profdata | Tool::Strip => output.stdout.into(),
     };
