@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - `cargo-objdump` now produces appropriate output when disassembling for Thumb
-  targets.
+  and PowerPC targets.
 
 ## [v0.1.3] - 2018-09-01
 
