@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.4] - 2018-09-08
+
+### Fixed
+
+- `cargo-objdump` now produces appropriate output when disassembling for Thumb
+  targets.
+
 ## [v0.1.3] - 2018-09-01
 
 ### Added
@@ -45,7 +52,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.4...HEAD
+[v0.1.4]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.0...v0.1.1
