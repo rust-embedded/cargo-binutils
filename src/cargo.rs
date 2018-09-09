@@ -54,6 +54,10 @@ pub fn target_dir() -> Result<(PathBuf, String)> {
         return Ok((PathBuf::from(target_dir), crate_name));
     }
 
+    if let Some(target_dir) = Config::get(&cwd)?.and_then(|conf| conf.build?.target_dir) {
+        return Ok((PathBuf::from(target_dir), crate_name));
+    }
+
     // we found the root of the crate we are in but we could be inside a workspace
     // so let's search for an outer crate
     if let Some(workspace_root) = crate_root
@@ -98,6 +102,8 @@ impl Config {
 #[derive(Deserialize)]
 pub struct Build {
     pub target: Option<String>,
+    #[serde(rename = "target-dir")]
+    pub target_dir: Option<String>,
 }
 
 #[cfg(test)]
@@ -157,5 +163,17 @@ target = "thumbv7m-none-eabi"
         ).unwrap();
 
         assert_eq!(config.build.unwrap().target.unwrap(), "thumbv7m-none-eabi");
+    }
+
+    #[test]
+    fn config_build_target_dir() {
+        let config: Config = toml::from_str(
+            r#"
+[build]
+target-dir = "custom-target"
+"#,
+        ).unwrap();
+
+        assert_eq!(config.build.unwrap().target_dir.unwrap(), "custom-target")
     }
 }
