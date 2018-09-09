@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## [v0.1.4] - 2018-09-08
+## [v0.1.4] - 2018-09-09
 
 ### Fixed
 
 - `cargo-objdump` now produces appropriate output when disassembling for Thumb
   and PowerPC targets.
+
+- Cargo now respects the `build.target-dir` setting in `.cargo/config`.
 
 ## [v0.1.3] - 2018-09-01
 
