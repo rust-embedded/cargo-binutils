@@ -152,7 +152,15 @@ impl Context {
         let mut c = Command::new(self.bindir().join(&*exe(&format!("llvm-{}", tool.name()))));
 
         if tool == Tool::Objdump {
-            c.args(&["-arch-name", llvm::arch_name(self.rustc_cfg(), target)]);
+            let arch_name = llvm::arch_name(self.rustc_cfg(), target);
+
+            if arch_name == "thumb" {
+                // `-arch-name=thumb` doesn't produce the right output so instead we pass
+                // `-triple=$target`, which contains more information about the target
+                c.args(&["-triple", target]);
+            } else {
+                c.args(&["-arch-name", arch_name]);
+            }
         }
 
         c

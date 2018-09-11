@@ -75,7 +75,7 @@ pub fn arch_name<'a>(cfg: &'a rustc::Cfg, target: &'a str) -> &'a str {
             ("sparc", Endian::Little) => "sparcel",
 
             // names that match
-            ("powerpc", _) => "ppc",
+            ("powerpc", _) => "ppc32",
             ("powerpc64", Endian::Big) => "ppc64",
             ("sparc64", _) => "sparcv9",
             ("s390x", _) => "systemz",
