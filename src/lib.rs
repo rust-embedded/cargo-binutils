@@ -1,15 +1,12 @@
 #![deny(warnings)]
 
+extern crate cargo_project;
 #[macro_use]
 extern crate failure;
+extern crate clap;
 extern crate regex;
 extern crate rustc_demangle;
 extern crate rustc_version;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate clap;
-extern crate toml;
 extern crate walkdir;
 
 use std::borrow::Cow;
@@ -18,19 +15,13 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, str};
 
+use cargo_project::{Artifact, Error, Profile, Project};
 use clap::{App, AppSettings, Arg};
-pub use failure::Error;
 use walkdir::WalkDir;
 
-use cargo::Config;
-
-mod cargo;
 mod llvm;
 mod postprocess;
 mod rustc;
-mod util;
-
-pub type Result<T> = std::result::Result<T, failure::Error>;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Tool {
@@ -76,23 +67,29 @@ pub enum Endian {
 pub struct Context {
     /// Directory within the Rust sysroot where the llvm tools reside
     bindir: PathBuf,
-    // `[build] target = ".."` info in `.cargo/config`
-    build_target: Option<String>,
     cfg: rustc::Cfg,
-    // the compilation target
+    /// In a Cargo project or not?
+    project: Option<Project>,
     target: String,
 }
 
 impl Context {
     /* Constructors */
-    fn new(target_flag: Option<&str>) -> Result<Self> {
+    fn new(target_flag: Option<&str>) -> Result<Self, failure::Error> {
         let cwd = env::current_dir()?;
 
-        let config = Config::get(&cwd)?;
-        let build_target = config
-            .as_ref()
-            .and_then(|config| config.build.as_ref().and_then(|build| build.target.clone()));
-
+        #[allow(unreachable_patterns)]
+        let project = match Project::query(cwd) {
+            Ok(p) => Some(p),
+            Err(e) => match e.downcast::<cargo_project::Error>() {
+                // NOTE we postpone raising this error to let e.g. `cargo nm -- -help` work outside
+                // Cargo projects
+                Ok(Error::NotACargoProject) => None,
+                // future proofing
+                Ok(e) => return Err(e.into()),
+                Err(e) => return Err(e.into()),
+            },
+        };
         let meta = rustc_version::version_meta()?;
         let host = meta.host;
 
@@ -105,8 +102,8 @@ impl Context {
         )?;
 
         let target = target_flag
-            .map(|s| s.to_owned())
-            .or_else(|| build_target.clone())
+            .or(project.as_ref().and_then(|p| p.target()))
+            .map(|t| t.to_owned())
             .unwrap_or(host);
         let cfg = rustc::Cfg::parse(&target)?;
 
@@ -118,8 +115,8 @@ impl Context {
 
                 return Ok(Context {
                     bindir,
-                    build_target,
                     cfg,
+                    project,
                     target,
                 });
             }
@@ -136,16 +133,12 @@ impl Context {
         &self.bindir
     }
 
-    fn build_target(&self) -> Option<&str> {
-        self.build_target.as_ref().map(|s| &**s)
+    fn project(&self) -> Result<&Project, Error> {
+        self.project.as_ref().ok_or(Error::NotACargoProject)
     }
 
     fn rustc_cfg(&self) -> &rustc::Cfg {
         &self.cfg
-    }
-
-    fn target(&self) -> &str {
-        &self.target
     }
 
     fn tool(&self, tool: Tool, target: &str) -> Command {
@@ -177,7 +170,7 @@ fn exe(name: &str) -> Cow<str> {
     name.into()
 }
 
-pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32> {
+pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32, failure::Error> {
     let name = tool.name();
     let needs_build = tool.needs_build();
 
@@ -208,12 +201,14 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                 .takes_value(true)
                 .value_name("TRIPLE")
                 .help("Target triple for which the code is compiled"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("verbose")
                 .long("verbose")
                 .short("v")
                 .help("Use verbose output"),
-        ).arg(Arg::with_name("--").short("-").hidden_short_help(true))
+        )
+        .arg(Arg::with_name("--").short("-").hidden_short_help(true))
         .arg(Arg::with_name("args").multiple(true))
         .after_help(&*after_help);
 
@@ -224,94 +219,90 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                 .takes_value(true)
                 .value_name("NAME")
                 .help("Build only the specified binary"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("example")
                 .long("example")
                 .takes_value(true)
                 .value_name("NAME")
                 .help("Build only the specified example"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("lib")
                 .long("lib")
                 .help("Build only this package's library"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("release")
                 .long("release")
                 .help("Build artifacts in release mode, with optimizations"),
         )
     } else {
         app
-    }.get_matches();
+    }
+    .get_matches();
 
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
-
-    let (artifact, release) = if needs_build {
-        fn at_least_two_are_true(a: bool, b: bool, c: bool) -> bool {
-            if a {
-                b || c
-            } else {
-                b && c
-            }
-        }
-
-        let bin = matches.is_present("bin");
-        let example = matches.is_present("example");
-        let lib = matches.is_present("lib");
-        let release = matches.is_present("release");
-
-        if at_least_two_are_true(bin, example, lib) {
-            return Err(failure::err_msg(
-                "Only one of `--bin`, `--example` or `--lib` must be specified",
-            ));
-        }
-
-        if bin {
-            (
-                Some(Artifact::Bin(matches.value_of("bin").unwrap())),
-                release,
-            )
-        } else if example {
-            (
-                Some(Artifact::Example(matches.value_of("example").unwrap())),
-                release,
-            )
-        } else if lib {
-            (Some(Artifact::Lib), release)
-        } else {
-            (None, release)
-        }
+    let profile = if matches.is_present("release") {
+        Profile::Release
     } else {
-        (None, false)
+        Profile::Dev
     };
 
-    let mut cargo = Command::new("cargo");
-    cargo.arg("build");
-
-    // NOTE we do *not* use the `build_target` info here because Cargo will figure things out on
-    // its own (i.e. it will search and parse .cargo/config, etc.)
-    if let Some(target) = target_flag {
-        cargo.args(&["--target", target]);
+    fn at_least_two_are_true(a: bool, b: bool, c: bool) -> bool {
+        if a {
+            b || c
+        } else {
+            b && c
+        }
     }
 
-    match artifact {
-        Some(Artifact::Bin(bin)) => {
-            cargo.args(&["--bin", bin]);
-        }
-        Some(Artifact::Example(example)) => {
-            cargo.args(&["--example", example]);
-        }
-        Some(Artifact::Lib) => {
-            cargo.arg("--lib");
-        }
-        None => {}
+    let bin = matches.is_present("bin");
+    let example = matches.is_present("example");
+    let lib = matches.is_present("lib");
+
+    if at_least_two_are_true(bin, example, lib) {
+        bail!("Only one of `--bin`, `--example` or `--lib` must be specified")
     }
 
-    if release {
-        cargo.arg("--release");
-    }
+    let artifact = if bin {
+        Some(Artifact::Bin(matches.value_of("bin").unwrap()))
+    } else if example {
+        Some(Artifact::Example(matches.value_of("example").unwrap()))
+    } else if lib {
+        Some(Artifact::Lib)
+    } else {
+        None
+    };
 
-    if artifact.is_some() {
+    if let Some(artifact) = artifact {
+        let mut cargo = Command::new("cargo");
+        cargo.arg("build");
+
+        // NOTE we do *not* use `project.target()` here because Cargo will figure things out on
+        // its own (i.e. it will search and parse .cargo/config, etc.)
+        if let Some(target) = target_flag {
+            cargo.args(&["--target", target]);
+        }
+
+        match artifact {
+            Artifact::Bin(bin) => {
+                cargo.args(&["--bin", bin]);
+            }
+            Artifact::Example(example) => {
+                cargo.args(&["--example", example]);
+            }
+            Artifact::Lib => {
+                cargo.arg("--lib");
+            }
+            _ => unimplemented!(),
+        }
+
+        if profile.is_release() {
+            cargo.arg("--release");
+        }
+
         if verbose {
             eprintln!("{:?}", cargo);
         }
@@ -334,7 +325,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
     let ctxt = Context::new(target_flag)?;
 
-    let mut lltool = ctxt.tool(tool, ctxt.target());
+    let mut lltool = ctxt.tool(tool, &ctxt.target);
 
     // Extra flags
     match tool {
@@ -348,7 +339,8 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
     // Artifact
     if let Some(kind) = artifact {
-        let artifact = cargo::artifact(&kind, release, target_flag, ctxt.build_target())?;
+        let project = ctxt.project()?;
+        let artifact = project.path(kind, profile, project.target());
 
         match tool {
             // for some tools we change the CWD (current working directory) and
@@ -392,12 +384,4 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     } else {
         Ok(output.status.code().unwrap_or(1))
     }
-}
-
-// The artifact we are going to build and inspect
-#[derive(PartialEq)]
-pub enum Artifact<'a> {
-    Bin(&'a str),
-    Example(&'a str),
-    Lib,
 }

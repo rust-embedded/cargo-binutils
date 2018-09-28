@@ -2,7 +2,7 @@ use std::process::Command;
 
 use failure;
 
-use {Endian, Result};
+use Endian;
 
 /// Parsed `rustc --print cfg`
 pub struct Cfg {
@@ -21,7 +21,7 @@ impl Cfg {
 }
 
 impl Cfg {
-    pub fn parse(target: &str) -> Result<Self> {
+    pub fn parse(target: &str) -> Result<Self, failure::Error> {
         const MSG: &str = "parsing `rustc --print cfg`";
 
         let mut rustc = Command::new("rustc");
