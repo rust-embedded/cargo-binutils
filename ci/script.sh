@@ -4,11 +4,11 @@ main() {
     cargo check
     cargo install --path . -f
 
-    cargo nm -v -- target/release/cargo-nm > /dev/null
-    cargo objdump -v -- -d target/release/cargo-objdump > /dev/null
-    cargo objcopy -v -- -O binary target/release/cargo-objdump objdump.bin > /dev/null
-    cargo size -v -- target/release/cargo-size
-    cargo strip -v -- target/release/cargo-strip
+    cargo nm --bin cargo-nm -v > /dev/null
+    cargo objdump --bin cargo-objdump -v -- -d > /dev/null
+    cargo objcopy --bin cargo-objdump -v -- -O binary objdump.bin > /dev/null
+    cargo size --bin cargo-size -v
+    cargo strip --bin cargo-strip -v
 }
 
 main
