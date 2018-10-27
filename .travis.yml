@@ -8,6 +8,14 @@ matrix:
     - rust: nightly
       if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
 
+    - rust: stable
+      os: windows
+      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
+
+    - rust: nightly
+      os: windows
+      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
+
 before_install: set -e
 
 install:
