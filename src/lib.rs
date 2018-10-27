@@ -5,6 +5,7 @@ extern crate cargo_project;
 extern crate failure;
 extern crate clap;
 extern crate regex;
+extern crate rustc_cfg;
 extern crate rustc_demangle;
 extern crate rustc_version;
 extern crate walkdir;
@@ -17,11 +18,11 @@ use std::{env, str};
 
 use cargo_project::{Artifact, Error, Profile, Project};
 use clap::{App, AppSettings, Arg};
+use rustc_cfg::Cfg;
 use walkdir::WalkDir;
 
 mod llvm;
 mod postprocess;
-mod rustc;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Tool {
@@ -67,10 +68,14 @@ pub enum Endian {
 pub struct Context {
     /// Directory within the Rust sysroot where the llvm tools reside
     bindir: PathBuf,
-    cfg: rustc::Cfg,
+    cfg: Cfg,
     /// In a Cargo project or not?
     project: Option<Project>,
+    /// `--target`
+    target_flag: Option<String>,
+    /// Final compilation target
     target: String,
+    host: String,
 }
 
 impl Context {
@@ -104,8 +109,8 @@ impl Context {
         let target = target_flag
             .or(project.as_ref().and_then(|p| p.target()))
             .map(|t| t.to_owned())
-            .unwrap_or(host);
-        let cfg = rustc::Cfg::parse(&target)?;
+            .unwrap_or_else(|| host.clone());
+        let cfg = Cfg::of(&target)?;
 
         for entry in WalkDir::new(sysroot.trim()) {
             let entry = entry?;
@@ -118,6 +123,8 @@ impl Context {
                     cfg,
                     project,
                     target,
+                    target_flag: target_flag.map(|s| s.to_owned()),
+                    host,
                 });
             }
         }
@@ -137,8 +144,12 @@ impl Context {
         self.project.as_ref().ok_or(Error::NotACargoProject)
     }
 
-    fn rustc_cfg(&self) -> &rustc::Cfg {
+    fn rustc_cfg(&self) -> &Cfg {
         &self.cfg
+    }
+
+    fn target_flag(&self) -> Option<&str> {
+        self.target_flag.as_ref().map(|s| &**s)
     }
 
     fn tool(&self, tool: Tool, target: &str) -> Command {
@@ -340,7 +351,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     // Artifact
     if let Some(kind) = artifact {
         let project = ctxt.project()?;
-        let artifact = project.path(kind, profile, project.target());
+        let artifact = project.path(kind, profile, ctxt.target_flag(), &ctxt.host)?;
 
         match tool {
             // for some tools we change the CWD (current working directory) and
