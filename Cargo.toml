@@ -11,10 +11,11 @@ repository = "https://github.com/japaric/cargo-binutils"
 version = "0.1.5"
 
 [dependencies]
-cargo-project = "0.1.0"
+cargo-project = "0.2.0"
 clap = "2.32.0"
 failure = "0.1.1"
 regex = "0.2.10"
+rustc-cfg = "0.4.0"
 rustc-demangle = "0.1.7"
 rustc_version = "0.2.2"
 walkdir = "2.1.4"

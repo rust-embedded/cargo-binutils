@@ -1,4 +1,4 @@
-use {rustc, Endian};
+use rustc_cfg::Cfg;
 
 // Here we map Rust arches to LLVM arches
 //
@@ -53,30 +53,34 @@ use {rustc, Endian};
 // - wasm64
 // - x86
 // - x86-64
-pub fn arch_name<'a>(cfg: &'a rustc::Cfg, target: &'a str) -> &'a str {
-    let endian = cfg.endian();
-    let arch = cfg.arch();
+pub fn arch_name<'a>(cfg: &'a Cfg, target: &'a str) -> &'a str {
+    const BIG: &str = "big";
+    const LITTLE: &str = "little";
+
+    let endian = &*cfg.target_endian;
+    let arch = &*cfg.target_arch;
 
     if target.starts_with("thumb") {
         // no way to tell from `--print cfg` that the target is thumb only so we
         // completely rely on the target name here
-        match endian {
-            Endian::Little => "thumb",
-            Endian::Big => "thumbeb",
+        if endian == BIG {
+            "thumbeb"
+        } else {
+            "thumb"
         }
     } else {
         match (arch, endian) {
             // non standard endianness
-            ("aarch64", Endian::Big) => "aarch64_be",
-            ("arm", Endian::Big) => "armeb",
-            ("mips", Endian::Little) => "mipsel",
-            ("mips64", Endian::Little) => "mips64el",
-            ("powerpc64", Endian::Little) => "ppc64le",
-            ("sparc", Endian::Little) => "sparcel",
+            ("aarch64", BIG) => "aarch64_be",
+            ("arm", BIG) => "armeb",
+            ("mips", LITTLE) => "mipsel",
+            ("mips64", LITTLE) => "mips64el",
+            ("powerpc64", LITTLE) => "ppc64le",
+            ("sparc", LITTLE) => "sparcel",
 
             // names that match
             ("powerpc", _) => "ppc32",
-            ("powerpc64", Endian::Big) => "ppc64",
+            ("powerpc64", BIG) => "ppc64",
             ("sparc64", _) => "sparcv9",
             ("s390x", _) => "systemz",
             ("x86_64", _) => "x86-64",
