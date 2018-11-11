@@ -42,7 +42,7 @@ script:
 after_script: set +e
 
 before_deploy:
-  - bash ci/before_deploy.sh
+  - bash ci/before-deploy.sh
 
 deploy:
   api_key:
