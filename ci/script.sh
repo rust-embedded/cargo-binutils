@@ -14,4 +14,7 @@ main() {
     fi
 }
 
-main
+# skip tests when building binaries and on successful merges to master
+if [ -z ${TRAVIS_TAG:-} ] && [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_PULL_REQUEST != false ]; then
+    main
+fi
