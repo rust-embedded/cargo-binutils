@@ -35,6 +35,7 @@ before_install: set -e
 
 install:
   - bash ci/install.sh
+  - export PATH="$PATH:$HOME/musl/bin"
 
 script:
   - bash ci/script.sh
