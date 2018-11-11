@@ -1,30 +1,60 @@
 language: rust
 
+env:
+  global:
+    - CRATE_NAME=cargo-binutils
+
 matrix:
   include:
     - rust: stable
-      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
+      env: T=x86_64-unknown-linux-musl
 
     - rust: nightly
+      env: T=x86_64-unknown-linux-musl
+      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
+
+    - rust: stable
+      os: osx
+      env: T=x86_64-apple-darwin
+
+    - rust: nightly
+      os: osx
+      env: T=x86_64-apple-darwin
       if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
 
     - rust: stable
       os: windows
-      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
+      env: T=x86_64-pc-windows-msvc
 
     - rust: nightly
       os: windows
+      env: T=x86_64-pc-windows-msvc
       if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
 
 before_install: set -e
 
 install:
   - bash ci/install.sh
+  - export PATH="$PATH:$HOME/musl/bin"
 
 script:
   - bash ci/script.sh
 
 after_script: set +e
+
+before_deploy:
+  - bash ci/before-deploy.sh
+
+deploy:
+  api_key:
+    secure: "USAPWo9V4UjvYRRCr2QZFLxepFUI9zAXpFsL+WNTvD8vSmOsv/OoHYG/KKyH57FhhrUs6LzvP8n9qNC1HhNT6FG1Mvu9isYz33Dbz1FnKemsGQZyay8+VBbSQJLxfMN0kxieUhR7adsm+EOn4XNviIk97g8PgBwmY0iH77wYs7wYSivloi41oSBn7Jbpw35J+L/W0nfN9NJhqaX+slNKbNT6I64DKB9+RpBsEQ36KoogIqhn/r7ofdbxU6Szm6PmppmobDCwlXosSrJTwGmne6bnimu/Cu4cz59+qUMb0F0+jTQzCAYa7EEkZ/c7Ob9yJPYSHoY8K1MuTHtOe+ED+YTEFdOjLfncF38vvIGgiLjo3Yy22y3Ka/WaTiHmsSrmjGW3U4RZrKu+DQ+fA5YNmy1Tnhts45XhFJisY3zJfsaNX9hM9S4VvQgADlx7lvyIWo0sXO2usTPPBHB4ZlCG1SgFeXr0INxc1nq43cSZgpTySTnUoQEAJiTpYaiYvBKTAmJa4wP0DNqbjfOj/RB7pIkHTdmNqFWNOo2zjq8bSGVoLMX2zttwmht+WAJ4PEOetpR/IP/zFOedMn6KpyKbwfLz91W7ES9R/W7fPdAu/KhQKNqraM1EX0erLvBgeKchkL2vxUIW+NzIbS76I/VHPOwMgjh4KOsiotK5pCwV6Vw="
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$T.*
+  on:
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+  provider: releases
+  skip_cleanup: true
 
 cache: cargo
 
@@ -36,6 +66,8 @@ branches:
     - master
     - staging
     - trying
+    # release tags
+    - /^v\d+\.\d+\.\d+.*$/
 
 notifications:
   email:
