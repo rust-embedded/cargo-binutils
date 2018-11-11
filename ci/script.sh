@@ -1,7 +1,7 @@
 set -euxo pipefail
 
 main() {
-    cargo install --path . -f --debug
+    cargo install --target $T --path . -f --debug
 
     cargo nm --bin cargo-nm -v > /dev/null
     cargo objdump --bin cargo-objdump -v -- -d > /dev/null
