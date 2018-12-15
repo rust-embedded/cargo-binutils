@@ -248,6 +248,19 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                 .long("release")
                 .help("Build artifacts in release mode, with optimizations"),
         )
+        .arg(
+            Arg::with_name("features")
+                .long("features")
+                .takes_value(true)
+                .value_name("FEATURES")
+                .help("Space-separated list of features to activate"),
+        )
+        .arg(
+            Arg::with_name("all-features")
+                .long("all-features")
+                .takes_value(false)
+                .help("Activate all available features"),
+        )
     } else {
         app
     }
@@ -295,6 +308,12 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         // its own (i.e. it will search and parse .cargo/config, etc.)
         if let Some(target) = target_flag {
             cargo.args(&["--target", target]);
+        }
+
+        if matches.is_present("all-features") {
+            cargo.arg("--all-features");
+        } else if let Some(features) = matches.value_of("features") {
+            cargo.args(&["--features", features]);
         }
 
         match artifact {
