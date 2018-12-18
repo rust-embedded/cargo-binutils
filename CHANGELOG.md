@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.6] - 2018-12-18
+
+### Added
+
+- All the `cargo-$tool` subcommands that include a build step now accept the
+  flags: `--features` and `--all-features`. These flags are passed as is to the
+  `cargo build` command that these subcommands invoke.
+
+- This project now produces binary artifacts for each new release. You can find
+  the binaries in the [releases] page.
+
+[releases]: https://github.com/rust-embedded/cargo-binutils/releases
+
 ## [v0.1.5] - 2018-10-28
 
 ### Added
@@ -64,7 +77,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.6...HEAD
+[v0.1.6]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.5...v0.1.6
 [v0.1.5]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.4...v0.1.5
 [v0.1.4]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.2...v0.1.3
