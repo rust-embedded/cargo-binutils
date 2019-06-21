@@ -22,27 +22,43 @@ $ rustup component add llvm-tools-preview
 
 ## Usage
 
-This
+This:
 
 ``` console
-$ cargo $tool -- ${args[@]}
+$ rust-$tool ${args[@]}
 ```
 
-is basically sugar for
+is basically sugar for:
 
 ``` console
 $ $(find $(rustc --print sysroot) -name llvm-$tool) ${args[@]}
+```
+
+Apart from these `rust-*` tools, which are direct proxies for the llvm tools in
+the `llvm-tools-preview` component, the crate also provides some Cargo
+subcommands that will first build the project and then run the llvm tool on the
+output artifact. This:
+
+``` console
+$ cargo size --example foo
+```
+
+is sugar for:
+
+``` console
+$ cargo build --example foo
+$ rust-size target/examples/foo
 ```
 
 In the case of `cargo-objdump` the architecture of the compilation target is
 passed as `-arch-name=$target` to `llvm-objdump`. `-arch-name` specifies to
 which architecture disassemble the object file to.
 
-You can get more information about the CLI of each tool by running `cargo $tool
--- --help`.
+You can get more information about the CLI of each tool by running `rust-$tool
+ -help`.
 
-All the subcommands accept a `--verbose` / `-v` flag. In verbose mode the
-`llvm-$tool` invocation will be printed to stderr.
+All the Cargo subcommands accept a `--verbose` / `-v` flag. In verbose mode the
+`rust-$tool` invocation will be printed to stderr.
 
 Build and inspect mode: Some subcommands accept the flags: `--bin`, `--example`,
 `--lib`, `--target` and `--release`. These can be used to make the subcommand

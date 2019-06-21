@@ -12,7 +12,7 @@ extern crate walkdir;
 
 use std::borrow::Cow;
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::{env, str};
 
@@ -66,8 +66,6 @@ pub enum Endian {
 /// Execution context
 // TODO this should be some sort of initialize once, read-only singleton
 pub struct Context {
-    /// Directory within the Rust sysroot where the llvm tools reside
-    bindir: PathBuf,
     cfg: Cfg,
     /// In a Cargo project or not?
     project: Option<Project>,
@@ -98,48 +96,22 @@ impl Context {
         let meta = rustc_version::version_meta()?;
         let host = meta.host;
 
-        let sysroot = String::from_utf8(
-            Command::new("rustc")
-                .arg("--print")
-                .arg("sysroot")
-                .output()?
-                .stdout,
-        )?;
-
         let target = target_flag
             .or(project.as_ref().and_then(|p| p.target()))
             .map(|t| t.to_owned())
             .unwrap_or_else(|| host.clone());
         let cfg = Cfg::of(&target)?;
 
-        for entry in WalkDir::new(sysroot.trim()) {
-            let entry = entry?;
-
-            if entry.file_name() == &*exe("llvm-size") {
-                let bindir = entry.path().parent().unwrap().to_owned();
-
-                return Ok(Context {
-                    bindir,
-                    cfg,
-                    project,
-                    target,
-                    target_flag: target_flag.map(|s| s.to_owned()),
-                    host,
-                });
-            }
-        }
-
-        bail!(
-            "`llvm-tools-preview` component is missing or empty. Install it with `rustup component \
-             add llvm-tools-preview`"
-        );
+        Ok(Context {
+            cfg,
+            project,
+            target,
+            target_flag: target_flag.map(|s| s.to_owned()),
+            host,
+        })
     }
 
     /* Private API */
-    fn bindir(&self) -> &Path {
-        &self.bindir
-    }
-
     fn project(&self) -> Result<&Project, Error> {
         self.project.as_ref().ok_or(Error::NotACargoProject)
     }
@@ -153,7 +125,7 @@ impl Context {
     }
 
     fn tool(&self, tool: Tool, target: &str) -> Command {
-        let mut c = Command::new(self.bindir().join(&*exe(&format!("llvm-{}", tool.name()))));
+        let mut c = Command::new(format!("rust-{}", tool.name()));
 
         if tool == Tool::Objdump {
             let arch_name = llvm::arch_name(self.rustc_cfg(), target);
@@ -414,4 +386,40 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     } else {
         Ok(output.status.code().unwrap_or(1))
     }
+}
+
+pub fn forward(tool: &str) -> Result<i32, failure::Error> {
+    let path = search_tool(tool)?;
+
+    // NOTE(`skip`) the first argument is the name of the binary (e.g. `rust-nm`)
+    let status = Command::new(path).args(env::args().skip(1)).status()?;
+
+    if status.success() {
+        Ok(0)
+    } else {
+        Ok(status.code().unwrap_or(101))
+    }
+}
+
+fn search_tool(tool: &str) -> Result<PathBuf, failure::Error> {
+    let sysroot = String::from_utf8(
+        Command::new("rustc")
+            .arg("--print")
+            .arg("sysroot")
+            .output()?
+            .stdout,
+    )?;
+
+    for entry in WalkDir::new(sysroot.trim()) {
+        let entry = entry?;
+
+        if entry.file_name() == &*exe(tool) {
+            return Ok(entry.into_path());
+        }
+    }
+
+    bail!(
+        "`llvm-tools-preview` component is missing or empty. Install it with `rustup component \
+         add llvm-tools-preview`"
+    );
 }
