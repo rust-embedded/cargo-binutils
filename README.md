@@ -9,8 +9,8 @@ This project is developed and maintained by the [Tools team][team].
 ## Features
 
 - All Rust symbols in the output of the LLVM tools are automatically demangled.
-- No need to pass to pass the path to the artifact as an argument if using the
-  tool in "build and inspect" mode.
+- No need to pass the path to the artifact as an argument if using the tool in
+  "build and inspect" mode.
 
 ## Installation
 
