@@ -192,6 +192,17 @@ $ stat --printf="%s\n" smaller-hello
 424432
 ```
 
+### `rust-lld`
+
+Provides a link to `lld`.
+Used to change the linker or providing a workaround if `-C linker-flavor` is not doing the job.
+
+`.cargo/config`
+```toml
+[target.wasm32-unknown-unknown]
+linker = "rust-lld"
+```
+
 ## License
 
 Licensed under either of
