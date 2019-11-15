@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.7] - 2019-11-15
+
+### Added
+
+- Add rust-* direct aliases to the llvm tools (e.g. rust-ar, rust-ld, rust-lld etc).
+
+### Fixed
+
+- Fixed detection of workspaces (via cargo-project dependency)
+
 ## [v0.1.6] - 2018-12-18
 
 ### Added
@@ -77,7 +87,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.7...HEAD
+[v0.1.7]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.5...v0.1.6
 [v0.1.5]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.4...v0.1.5
 [v0.1.4]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.3...v0.1.4
