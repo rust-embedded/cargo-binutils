@@ -350,7 +350,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             let message = message?;
             match message {
                 Message::CompilerArtifact(artifact) => {
-                    if artifact.package_id.repr.starts_with(artifact_name) {
+                    if artifact.target.name == artifact_name {
                         wanted_artifact = Some(artifact.clone());
                     }
                 },
