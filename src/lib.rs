@@ -8,17 +8,17 @@ extern crate regex;
 extern crate rustc_cfg;
 extern crate rustc_demangle;
 extern crate rustc_version;
-extern crate walkdir;
-extern crate toml;
 extern crate serde;
+extern crate toml;
+extern crate walkdir;
 
 use std::borrow::Cow;
 use std::io::{self, Write};
-use std::path::{Path, PathBuf, Component};
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, str};
 
-use cargo_metadata::{Message, parse_messages, Artifact};
+use cargo_metadata::{parse_messages, Artifact, Message};
 use clap::{App, AppSettings, Arg};
 use rustc_cfg::Cfg;
 use walkdir::WalkDir;
@@ -140,13 +140,16 @@ impl Context {
 
         if let Some(path) = search(&root_dir, ".cargo/config") {
             config = parse(&path.join(".cargo/config"))?;
-            config_target_name = config.get("build")
+            config_target_name = config
+                .get("build")
                 .and_then(|build| build.get("target"))
                 .and_then(|target| target.as_str());
         }
 
         // Find the actual target.
-        let target_name = target_flag.or(config_target_name).unwrap_or(&host_target_name);
+        let target_name = target_flag
+            .or(config_target_name)
+            .unwrap_or(&host_target_name);
 
         Self::from_target_name(target_name)
     }
@@ -353,12 +356,12 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                     if artifact.target.name == artifact_name {
                         wanted_artifact = Some(artifact.clone());
                     }
-                },
+                }
                 Message::CompilerMessage(msg) => {
                     if let Some(rendered) = msg.message.rendered {
                         print!("{}", rendered);
                     }
-                },
+                }
                 _ => (),
             }
         }
@@ -410,7 +413,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             //
             // We could instead look for files ending in .rlib, but that would
             // fail for cdylib and other fancy crate kinds.
-            None => &artifact.filenames[0]
+            None => &artifact.filenames[0],
         };
 
         match tool {

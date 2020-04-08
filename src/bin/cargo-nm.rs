@@ -3,7 +3,7 @@ extern crate clap;
 
 use std::process;
 
-use cbu::Tool;
+use crate::cbu::Tool;
 
 const EXAMPLES: &str = "
 
