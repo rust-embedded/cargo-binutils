@@ -297,9 +297,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         bail!("Only one of `--bin`, `--example` or `--lib` must be specified")
     }
 
-    let should_build = bin || example || lib;
-
-    let artifact = if should_build {
+    let artifact = {
         let mut cargo = Command::new("cargo");
         cargo.arg("build");
 
@@ -328,7 +326,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             cargo.args(&["--lib", lib_name]);
             lib_name
         } else {
-            unreachable!();
+            ""
         };
 
         if matches.is_present("release") {
@@ -350,15 +348,21 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             let message = message?;
             match message {
                 Message::CompilerArtifact(artifact) => {
-                    if artifact.target.name == artifact_name {
+                    if artifact.target.name == artifact_name
+                        || artifact_name.is_empty() && artifact.executable.is_some()
+                    {
+                        if wanted_artifact.is_some() {
+                            panic!("Can only have one matching artifact but found several");
+                        }
+
                         wanted_artifact = Some(artifact.clone());
                     }
-                },
+                }
                 Message::CompilerMessage(msg) => {
                     if let Some(rendered) = msg.message.rendered {
                         print!("{}", rendered);
                     }
-                },
+                }
                 _ => (),
             }
         }
@@ -368,9 +372,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             return Ok(status.code().unwrap_or(1));
         }
 
-        Some(wanted_artifact.expect("Cargo to compile the wanted artifact"))
-    } else {
-        None
+        Some(wanted_artifact.expect("Could not determine the wanted artifact"))
     };
 
     let mut tool_args = vec![];
