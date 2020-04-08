@@ -45,7 +45,8 @@ pub fn size(bytes: &[u8]) -> Cow<[u8]> {
                     }
                     _ => line.into(),
                 }
-            }).collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
             .join("\n");
 
         // `text.lines()` loses the trailing newline so we restore it here

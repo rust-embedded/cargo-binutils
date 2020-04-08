@@ -2,7 +2,7 @@ extern crate cargo_binutils as cbu;
 
 use std::process;
 
-use cbu::Tool;
+use crate::cbu::Tool;
 
 const EXAMPLES: &str = "
 
