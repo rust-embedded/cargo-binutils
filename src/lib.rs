@@ -1,6 +1,6 @@
 #![deny(warnings)]
 
-extern crate cargo_project;
+extern crate cargo_metadata;
 #[macro_use]
 extern crate failure;
 extern crate clap;
@@ -9,14 +9,16 @@ extern crate rustc_cfg;
 extern crate rustc_demangle;
 extern crate rustc_version;
 extern crate walkdir;
+extern crate toml;
+extern crate serde;
 
 use std::borrow::Cow;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf, Component};
 use std::process::{Command, Stdio};
 use std::{env, str};
 
-use cargo_project::{Artifact, Error, Profile, Project};
+use cargo_metadata::{Message, parse_messages, Artifact};
 use clap::{App, AppSettings, Arg};
 use rustc_cfg::Cfg;
 use walkdir::WalkDir;
@@ -67,61 +69,99 @@ pub enum Endian {
 // TODO this should be some sort of initialize once, read-only singleton
 pub struct Context {
     cfg: Cfg,
-    /// In a Cargo project or not?
-    project: Option<Project>,
-    /// `--target`
-    target_flag: Option<String>,
     /// Final compilation target
     target: String,
-    host: String,
+}
+
+/// Search for `file` in `path` and its parent directories
+fn search<'p>(path: &'p Path, file: &str) -> Option<&'p Path> {
+    path.ancestors().find(|dir| dir.join(file).exists())
+}
+
+fn parse<T>(path: &Path) -> Result<T, failure::Error>
+where
+    T: for<'de> serde::Deserialize<'de>,
+{
+    use std::fs::File;
+    use std::io::Read;
+    use toml::de;
+
+    let mut s = String::new();
+    File::open(path)?.read_to_string(&mut s)?;
+    Ok(de::from_str(&s)?)
 }
 
 impl Context {
     /* Constructors */
-    fn new(target_flag: Option<&str>) -> Result<Self, failure::Error> {
-        let cwd = env::current_dir()?;
+    /// Get a context structure from a built artifact.
+    fn from_artifact(artifact: &Artifact) -> Result<Self, failure::Error> {
+        // Get target from artifact. Ideally, the artifact should really contain
+        // the target triple. Sadly, it doesn't. So as an approximation, we
+        // extract it from the filename path.
+        let metadata = cargo_metadata::MetadataCommand::new().exec()?;
 
-        #[allow(unreachable_patterns)]
-        let project = match Project::query(cwd) {
-            Ok(p) => Some(p),
-            Err(e) => match e.downcast::<cargo_project::Error>() {
-                // NOTE we postpone raising this error to let e.g. `cargo nm -- -help` work outside
-                // Cargo projects
-                Ok(Error::NotACargoProject) => None,
-                // future proofing
-                Ok(e) => return Err(e.into()),
-                Err(e) => return Err(e.into()),
-            },
+        // Should always succeed.
+        let target_path = artifact.filenames[0].strip_prefix(metadata.target_directory)?;
+        let target_name = if let Some(Component::Normal(path)) = target_path.components().next() {
+            let path = path.to_string_lossy();
+            // TODO: How will custom profiles impact this?
+            if path == "debug" || path == "release" {
+                // Looks like this artifact was built for the host.
+                rustc_version::version_meta()?.host
+            } else {
+                // The artifact
+                path.to_string()
+            }
+        } else {
+            unreachable!();
         };
+
+        Self::from_target_name(&target_name)
+    }
+
+    /// Get a context structure from a provided target flag, used when cargo
+    /// was not used to build the binary.
+    fn from_flag(target_flag: Option<&str>) -> Result<Self, failure::Error> {
+        let metadata = cargo_metadata::MetadataCommand::new().exec().ok();
+
         let meta = rustc_version::version_meta()?;
         let host = meta.host;
+        let host_target_name = host;
 
-        let target = target_flag
-            .or(project.as_ref().and_then(|p| p.target()))
-            .map(|t| t.to_owned())
-            .unwrap_or_else(|| host.clone());
-        let cfg = Cfg::of(&target)?;
+        // Get the "default" target override in .cargo/config.
+        let mut config_target_name = None;
+        let config: toml::Value;
+
+        let root_dir = if let Some(metadata) = metadata {
+            metadata.workspace_root
+        } else {
+            std::env::current_dir()?
+        };
+
+        if let Some(path) = search(&root_dir, ".cargo/config") {
+            config = parse(&path.join(".cargo/config"))?;
+            config_target_name = config.get("build")
+                .and_then(|build| build.get("target"))
+                .and_then(|target| target.as_str());
+        }
+
+        // Find the actual target.
+        let target_name = target_flag.or(config_target_name).unwrap_or(&host_target_name);
+
+        Self::from_target_name(target_name)
+    }
+
+    fn from_target_name(target_name: &str) -> Result<Self, failure::Error> {
+        let cfg = Cfg::of(target_name)?;
 
         Ok(Context {
             cfg,
-            project,
-            target,
-            target_flag: target_flag.map(|s| s.to_owned()),
-            host,
+            target: target_name.to_string(),
         })
-    }
-
-    /* Private API */
-    fn project(&self) -> Result<&Project, Error> {
-        self.project.as_ref().ok_or(Error::NotACargoProject)
     }
 
     fn rustc_cfg(&self) -> &Cfg {
         &self.cfg
-    }
-
-    fn target_flag(&self) -> Option<&str> {
-        self.target_flag.as_ref().map(|s| &**s)
     }
 
     fn tool(&self, tool: Tool, target: &str) -> Command {
@@ -240,11 +280,6 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
-    let profile = if matches.is_present("release") {
-        Profile::Release
-    } else {
-        Profile::Dev
-    };
 
     fn at_least_two_are_true(a: bool, b: bool, c: bool) -> bool {
         if a {
@@ -262,17 +297,9 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         bail!("Only one of `--bin`, `--example` or `--lib` must be specified")
     }
 
-    let artifact = if bin {
-        Some(Artifact::Bin(matches.value_of("bin").unwrap()))
-    } else if example {
-        Some(Artifact::Example(matches.value_of("example").unwrap()))
-    } else if lib {
-        Some(Artifact::Lib)
-    } else {
-        None
-    };
+    let should_build = bin || example || lib;
 
-    if let Some(artifact) = artifact {
+    let artifact = if should_build {
         let mut cargo = Command::new("cargo");
         cargo.arg("build");
 
@@ -288,33 +315,63 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             cargo.args(&["--features", features]);
         }
 
-        match artifact {
-            Artifact::Bin(bin) => {
-                cargo.args(&["--bin", bin]);
-            }
-            Artifact::Example(example) => {
-                cargo.args(&["--example", example]);
-            }
-            Artifact::Lib => {
-                cargo.arg("--lib");
-            }
-            _ => unimplemented!(),
-        }
+        let artifact_name = if bin {
+            let bin_name = matches.value_of("bin").unwrap();
+            cargo.args(&["--bin", bin_name]);
+            bin_name
+        } else if example {
+            let example_name = matches.value_of("example").unwrap();
+            cargo.args(&["--example", example_name]);
+            example_name
+        } else if lib {
+            let lib_name = matches.value_of("lib").unwrap();
+            cargo.args(&["--lib", lib_name]);
+            lib_name
+        } else {
+            unreachable!();
+        };
 
-        if profile.is_release() {
+        if matches.is_present("release") {
             cargo.arg("--release");
         }
+
+        cargo.arg("--message-format=json");
+        cargo.stdout(Stdio::piped());
 
         if verbose {
             eprintln!("{:?}", cargo);
         }
 
-        let status = cargo.status()?;
+        let mut child = cargo.spawn()?;
 
+        let stdout = child.stdout.take().unwrap();
+        let mut wanted_artifact = None;
+        for message in parse_messages(stdout) {
+            let message = message?;
+            match message {
+                Message::CompilerArtifact(artifact) => {
+                    if artifact.target.name == artifact_name {
+                        wanted_artifact = Some(artifact.clone());
+                    }
+                },
+                Message::CompilerMessage(msg) => {
+                    if let Some(rendered) = msg.message.rendered {
+                        print!("{}", rendered);
+                    }
+                },
+                _ => (),
+            }
+        }
+
+        let status = child.wait()?;
         if !status.success() {
             return Ok(status.code().unwrap_or(1));
         }
-    }
+
+        Some(wanted_artifact.expect("Cargo to compile the wanted artifact"))
+    } else {
+        None
+    };
 
     let mut tool_args = vec![];
     if let Some(arg) = matches.value_of("--") {
@@ -325,7 +382,11 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         tool_args.extend(args);
     }
 
-    let ctxt = Context::new(target_flag)?;
+    let ctxt = if let Some(artifact) = &artifact {
+        Context::from_artifact(artifact)?
+    } else {
+        Context::from_flag(target_flag)?
+    };
 
     let mut lltool = ctxt.tool(tool, &ctxt.target);
 
@@ -340,9 +401,17 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     }
 
     // Artifact
-    if let Some(kind) = artifact {
-        let project = ctxt.project()?;
-        let artifact = project.path(kind, profile, ctxt.target_flag(), &ctxt.host)?;
+    if let Some(artifact) = &artifact {
+        let file = match &artifact.executable {
+            // Example and bins have an executable
+            Some(val) => val,
+            // Libs have an rlib and an rmeta. We want the rlib, which always
+            // comes first in the filenames array after some quick testing.
+            //
+            // We could instead look for files ending in .rlib, but that would
+            // fail for cdylib and other fancy crate kinds.
+            None => &artifact.filenames[0]
+        };
 
         match tool {
             // for some tools we change the CWD (current working directory) and
@@ -351,11 +420,11 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             // `/home/user/rust/project/target/$T/debug/libfoo.rlib`.
             Tool::Objdump | Tool::Nm | Tool::Readobj | Tool::Size => {
                 lltool
-                    .current_dir(artifact.parent().unwrap())
-                    .arg(artifact.file_name().unwrap());
+                    .current_dir(file.parent().unwrap())
+                    .arg(file.file_name().unwrap());
             }
             Tool::Objcopy | Tool::Profdata | Tool::Strip => {
-                lltool.arg(artifact);
+                lltool.arg(file);
             }
         }
     }
