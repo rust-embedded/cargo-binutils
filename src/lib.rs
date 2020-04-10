@@ -1,17 +1,5 @@
 #![deny(warnings)]
 
-extern crate cargo_metadata;
-#[macro_use]
-extern crate failure;
-extern crate clap;
-extern crate regex;
-extern crate rustc_cfg;
-extern crate rustc_demangle;
-extern crate rustc_version;
-extern crate serde;
-extern crate toml;
-extern crate walkdir;
-
 use std::borrow::Cow;
 use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf};
@@ -20,6 +8,7 @@ use std::{env, str};
 
 use cargo_metadata::{parse_messages, Artifact, Message};
 use clap::{App, AppSettings, Arg};
+use failure::bail;
 use rustc_cfg::Cfg;
 use walkdir::WalkDir;
 
@@ -196,6 +185,106 @@ fn exe(name: &str) -> Cow<str> {
     name.into()
 }
 
+fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, failure::Error> {
+    let verbose = matches.is_present("verbose");
+    let target_flag = matches.value_of("target");
+
+    fn at_least_two_are_true(a: bool, b: bool, c: bool) -> bool {
+        if a {
+            b || c
+        } else {
+            b && c
+        }
+    }
+
+    let bin = matches.is_present("bin");
+    let example = matches.is_present("example");
+    let lib = matches.is_present("lib");
+
+    if at_least_two_are_true(bin, example, lib) {
+        bail!("Only one of `--bin`, `--example` or `--lib` must be specified")
+    }
+
+    let mut cargo = Command::new("cargo");
+    cargo.arg("build");
+
+    // NOTE we do *not* use `project.target()` here because Cargo will figure things out on
+    // its own (i.e. it will search and parse .cargo/config, etc.)
+    if let Some(target) = target_flag {
+        cargo.args(&["--target", target]);
+    }
+
+    if matches.is_present("all-features") {
+        cargo.arg("--all-features");
+    } else if let Some(features) = matches.value_of("features") {
+        cargo.args(&["--features", features]);
+    }
+
+    let artifact_name = if bin {
+        let bin_name = matches.value_of("bin").unwrap();
+        cargo.args(&["--bin", bin_name]);
+        bin_name
+    } else if example {
+        let example_name = matches.value_of("example").unwrap();
+        cargo.args(&["--example", example_name]);
+        example_name
+    } else if lib {
+        let lib_name = matches.value_of("lib").unwrap();
+        cargo.args(&["--lib", lib_name]);
+        lib_name
+    } else {
+        ""
+    };
+
+    if matches.is_present("release") {
+        cargo.arg("--release");
+    }
+
+    cargo.arg("--message-format=json");
+    cargo.stdout(Stdio::piped());
+
+    if verbose {
+        eprintln!("{:?}", cargo);
+    }
+
+    let mut child = cargo.spawn()?;
+    let stdout = child.stdout.take().expect("Pipe to cargo process failed");
+
+    let mut wanted_artifact = None;
+    for message in parse_messages(stdout) {
+        match message? {
+            Message::CompilerArtifact(artifact) => {
+                if artifact.target.name == artifact_name
+                    || artifact_name.is_empty() && artifact.executable.is_some()
+                {
+                    if wanted_artifact.is_some() {
+                        bail!("Can only have one matching artifact but found several");
+                    }
+
+                    wanted_artifact = Some(artifact.clone());
+                }
+            }
+            Message::CompilerMessage(msg) => {
+                if let Some(rendered) = msg.message.rendered {
+                    print!("{}", rendered);
+                }
+            }
+            _ => (),
+        }
+    }
+
+    let status = child.wait()?;
+    if !status.success() {
+        bail!("Failed to parse crate metadata");
+    }
+
+    if wanted_artifact.is_none() {
+        bail!("Could not determine the wanted artifact");
+    }
+
+    Ok(wanted_artifact)
+}
+
 pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32, failure::Error> {
     let name = tool.name();
     let needs_build = tool.needs_build();
@@ -284,99 +373,8 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
 
-    fn at_least_two_are_true(a: bool, b: bool, c: bool) -> bool {
-        if a {
-            b || c
-        } else {
-            b && c
-        }
-    }
-
-    let bin = matches.is_present("bin");
-    let example = matches.is_present("example");
-    let lib = matches.is_present("lib");
-
-    if at_least_two_are_true(bin, example, lib) {
-        bail!("Only one of `--bin`, `--example` or `--lib` must be specified")
-    }
-
-    let artifact = {
-        let mut cargo = Command::new("cargo");
-        cargo.arg("build");
-
-        // NOTE we do *not* use `project.target()` here because Cargo will figure things out on
-        // its own (i.e. it will search and parse .cargo/config, etc.)
-        if let Some(target) = target_flag {
-            cargo.args(&["--target", target]);
-        }
-
-        if matches.is_present("all-features") {
-            cargo.arg("--all-features");
-        } else if let Some(features) = matches.value_of("features") {
-            cargo.args(&["--features", features]);
-        }
-
-        let artifact_name = if bin {
-            let bin_name = matches.value_of("bin").unwrap();
-            cargo.args(&["--bin", bin_name]);
-            bin_name
-        } else if example {
-            let example_name = matches.value_of("example").unwrap();
-            cargo.args(&["--example", example_name]);
-            example_name
-        } else if lib {
-            let lib_name = matches.value_of("lib").unwrap();
-            cargo.args(&["--lib", lib_name]);
-            lib_name
-        } else {
-            ""
-        };
-
-        if matches.is_present("release") {
-            cargo.arg("--release");
-        }
-
-        cargo.arg("--message-format=json");
-        cargo.stdout(Stdio::piped());
-
-        if verbose {
-            eprintln!("{:?}", cargo);
-        }
-
-        let mut child = cargo.spawn()?;
-
-        let stdout = child.stdout.take().unwrap();
-        let mut wanted_artifact = None;
-        for message in parse_messages(stdout) {
-            let message = message?;
-            match message {
-                Message::CompilerArtifact(artifact) => {
-                    if artifact.target.name == artifact_name
-                        || artifact_name.is_empty() && artifact.executable.is_some()
-                    {
-                        if wanted_artifact.is_some() {
-                            panic!("Can only have one matching artifact but found several");
-                        }
-
-                        wanted_artifact = Some(artifact.clone());
-                    }
-                }
-                Message::CompilerMessage(msg) => {
-                    if let Some(rendered) = msg.message.rendered {
-                        print!("{}", rendered);
-                    }
-                }
-                _ => (),
-            }
-        }
-
-        let status = child.wait()?;
-        if !status.success() {
-            return Ok(status.code().unwrap_or(1));
-        }
-
-        Some(wanted_artifact.expect("Could not determine the wanted artifact"))
-    };
+    // Figure out which artifact to use with the tool
+    let artifact = determine_artifact(&matches)?;
 
     let mut tool_args = vec![];
     if let Some(arg) = matches.value_of("--") {
