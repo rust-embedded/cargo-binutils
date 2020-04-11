@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.2.0] - 2020-04-11
+
+### Added
+
+- Implement the typical cargo behaviour to determine an artifact to use if none was explictly specified
+
+### Changed
+
+- Use edition 2018 and bump some dependencies
+- Compare artifact against the requested artifact instead of package name
+- Use `cargo-metadata` instead of `cargo-project` (potentially a **breaking change**)
+
 ## [v0.1.7] - 2019-11-15
 
 ### Added
@@ -87,7 +99,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.7...v0.2.0
 [v0.1.7]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.5...v0.1.6
 [v0.1.5]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.4...v0.1.5
