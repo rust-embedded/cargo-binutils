@@ -6,7 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, str};
 
-use cargo_metadata::{parse_messages, Artifact, Message, MetadataCommand, CargoOpt};
+use cargo_metadata::{parse_messages, Artifact, CargoOpt, Message, MetadataCommand};
 use clap::{App, AppSettings, Arg};
 use failure::bail;
 use rustc_cfg::Cfg;
@@ -189,7 +189,7 @@ enum BuildType<'a> {
     Any,
     Bin(&'a str),
     Example(&'a str),
-    Lib
+    Lib,
 }
 
 impl<'a> BuildType<'a> {
@@ -283,9 +283,7 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
     for message in parse_messages(stdout) {
         match message? {
             Message::CompilerArtifact(artifact) => {
-                if artifact.package_id == package_id
-                    && build_type.matches(&artifact)
-                {
+                if artifact.package_id == package_id && build_type.matches(&artifact) {
                     if wanted_artifact.is_some() {
                         bail!("Can only have one matching artifact but found several");
                     }
