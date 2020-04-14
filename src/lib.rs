@@ -189,6 +189,8 @@ enum BuildType<'a> {
     Any,
     Bin(&'a str),
     Example(&'a str),
+    Test(&'a str),
+    Bench(&'a str),
     Lib,
 }
 
@@ -196,7 +198,10 @@ impl<'a> BuildType<'a> {
     fn matches(&self, artifact: &Artifact) -> bool {
         match self {
             BuildType::Any => true,
-            BuildType::Bin(target_name) | BuildType::Example(target_name) => {
+            BuildType::Bin(target_name)
+            | BuildType::Example(target_name)
+            | BuildType::Test(target_name)
+            | BuildType::Bench(target_name) => {
                 artifact.target.name == *target_name && artifact.executable.is_some()
             }
             BuildType::Lib => artifact.target.kind.iter().any(|s| s == "lib"),
@@ -208,25 +213,18 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
 
-    fn at_least_two_are_true(a: bool, b: bool, c: bool) -> bool {
-        if a {
-            b || c
-        } else {
-            b && c
-        }
-    }
-
-    let bin = matches.is_present("bin");
-    let example = matches.is_present("example");
-    let lib = matches.is_present("lib");
-
-    if at_least_two_are_true(bin, example, lib) {
-        bail!("Only one of `--bin`, `--example` or `--lib` must be specified")
-    }
-
     let mut metadata_command = MetadataCommand::new();
     let mut cargo = Command::new("cargo");
     cargo.arg("build");
+
+    if matches.is_present("quiet") {
+        cargo.arg("--quiet");
+    }
+
+    if let Some(color) = matches.value_of("color") {
+        cargo.arg("--color");
+        cargo.arg(color);
+    }
 
     // NOTE we do *not* use `project.target()` here because Cargo will figure things out on
     // its own (i.e. it will search and parse .cargo/config, etc.)
@@ -242,17 +240,21 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
         metadata_command.features(CargoOpt::SomeFeatures(vec![features.to_owned()]));
     }
 
-    let build_type = if bin {
-        let bin_name = matches.value_of("bin").unwrap();
-        cargo.args(&["--bin", bin_name]);
-        BuildType::Bin(bin_name)
-    } else if example {
-        let example_name = matches.value_of("example").unwrap();
-        cargo.args(&["--example", example_name]);
-        BuildType::Example(example_name)
-    } else if lib {
+    let build_type = if matches.is_present("lib") {
         cargo.args(&["--lib"]);
         BuildType::Lib
+    } else if let Some(bin_name) = matches.value_of("bin") {
+        cargo.args(&["--bin", bin_name]);
+        BuildType::Bin(bin_name)
+    } else if let Some(example_name) = matches.value_of("example") {
+        cargo.args(&["--example", example_name]);
+        BuildType::Example(example_name)
+    } else if let Some(test_name) = matches.value_of("test") {
+        cargo.args(&["--test", test_name]);
+        BuildType::Test(test_name)
+    } else if let Some(bench_name) = matches.value_of("bench") {
+        cargo.args(&["--bench", bench_name]);
+        BuildType::Bench(bench_name)
     } else {
         BuildType::Any
     };
@@ -314,9 +316,6 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
 
 pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32, failure::Error> {
     let name = tool.name();
-    let needs_build = tool.needs_build();
-
-    let app = App::new(format!("cargo-{}", name));
     let about = format!(
         "Proxy for the `llvm-{}` tool shipped with the Rust toolchain.",
         name
@@ -329,14 +328,23 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         name,
         examples.unwrap_or("")
     );
-    let app = app
+    let app = App::new(format!("cargo-{}", name))
         .about(&*about)
         .version(env!("CARGO_PKG_VERSION"))
-        .setting(AppSettings::TrailingVarArg)
-        .setting(AppSettings::DontCollapseArgsInUsage)
+        .settings(&[
+            AppSettings::UnifiedHelpMessage,
+            AppSettings::DeriveDisplayOrder,
+            AppSettings::DontCollapseArgsInUsage,
+        ])
         // as this is used as a Cargo subcommand the first argument will be the name of the binary
         // we ignore this argument
         .arg(Arg::with_name("binary-name").hidden(true))
+        .arg(
+            Arg::with_name("quiet")
+                .long("quiet")
+                .short("q")
+                .help("Don't print build output from `cargo build`"),
+        )
         .arg(
             Arg::with_name("target")
                 .long("target")
@@ -350,16 +358,34 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                 .short("v")
                 .help("Use verbose output"),
         )
-        .arg(Arg::with_name("--").short("-").hidden_short_help(true))
-        .arg(Arg::with_name("args").multiple(true))
+        .arg(
+            Arg::with_name("color")
+                .long("color")
+                .takes_value(true)
+                .possible_values(&["auto", "always", "never"])
+                .help("Coloring: auto, always, never"),
+        )
+        .arg(
+            Arg::with_name("args")
+                .last(true)
+                .multiple(true)
+                .help("The arguments to be proxied to the tool"),
+        )
         .after_help(&*after_help);
 
-    let matches = if needs_build {
+    let app = if tool.needs_build() {
         app.arg(
+            Arg::with_name("lib")
+                .long("lib")
+                .conflicts_with_all(&["bin", "example", "test", "bench"])
+                .help("Build only this package's library"),
+        )
+        .arg(
             Arg::with_name("bin")
                 .long("bin")
                 .takes_value(true)
                 .value_name("NAME")
+                .conflicts_with_all(&["lib", "example", "test", "bench"])
                 .help("Build only the specified binary"),
         )
         .arg(
@@ -367,12 +393,24 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                 .long("example")
                 .takes_value(true)
                 .value_name("NAME")
+                .conflicts_with_all(&["lib", "bin", "test", "bench"])
                 .help("Build only the specified example"),
         )
         .arg(
-            Arg::with_name("lib")
-                .long("lib")
-                .help("Build only this package's library"),
+            Arg::with_name("test")
+                .long("test")
+                .takes_value(true)
+                .value_name("NAME")
+                .conflicts_with_all(&["lib", "bin", "example", "bench"])
+                .help("Build only the specified test target"),
+        )
+        .arg(
+            Arg::with_name("bench")
+                .long("bench")
+                .takes_value(true)
+                .value_name("NAME")
+                .conflicts_with_all(&["lib", "bin", "example", "test"])
+                .help("Build only the specified bench target"),
         )
         .arg(
             Arg::with_name("release")
@@ -394,9 +432,9 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         )
     } else {
         app
-    }
-    .get_matches();
+    };
 
+    let matches = app.get_matches();
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
 
@@ -404,10 +442,6 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     let artifact = determine_artifact(&matches)?;
 
     let mut tool_args = vec![];
-    if let Some(arg) = matches.value_of("--") {
-        tool_args.push(arg);
-    }
-
     if let Some(args) = matches.values_of("args") {
         tool_args.extend(args);
     }

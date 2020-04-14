@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Added `--quiet` and `--color` arguments to be passed to `cargo build`
+- Added `--test` and `--bench` build arguments to allow targeting testing artifacts
+
 ### Fixed
 
 - Fixed handling of `--lib` argument to reflect how its used with `cargo build`
+- Fixed `--` argument handling to ensure argument validation
+
+### Changed
+
+- Changed help output to more closely reflect the help command of `cargo` subcommands
 
 ## [v0.2.0] - 2020-04-11
 
