@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed handling of `--lib` argument to reflect how its used with `cargo build`
+
 ## [v0.2.0] - 2020-04-11
 
 ### Added
