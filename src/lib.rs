@@ -314,9 +314,6 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
 
 pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32, failure::Error> {
     let name = tool.name();
-    let needs_build = tool.needs_build();
-
-    let app = App::new(format!("cargo-{}", name));
     let about = format!(
         "Proxy for the `llvm-{}` tool shipped with the Rust toolchain.",
         name
@@ -329,7 +326,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         name,
         examples.unwrap_or("")
     );
-    let app = app
+    let app = App::new(format!("cargo-{}", name))
         .about(&*about)
         .version(env!("CARGO_PKG_VERSION"))
         .setting(AppSettings::TrailingVarArg)
@@ -358,7 +355,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         )
         .after_help(&*after_help);
 
-    let matches = if needs_build {
+    let app = if tool.needs_build() {
         app.arg(
             Arg::with_name("bin")
                 .long("bin")
@@ -398,9 +395,9 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         )
     } else {
         app
-    }
-    .get_matches();
+    };
 
+    let matches = app.get_matches();
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
 
