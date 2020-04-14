@@ -350,8 +350,12 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                 .short("v")
                 .help("Use verbose output"),
         )
-        .arg(Arg::with_name("--").short("-").hidden_short_help(true))
-        .arg(Arg::with_name("args").multiple(true))
+        .arg(
+            Arg::with_name("args")
+                .last(true)
+                .multiple(true)
+                .help("The arguments to be proxied to the tool"),
+        )
         .after_help(&*after_help);
 
     let matches = if needs_build {
