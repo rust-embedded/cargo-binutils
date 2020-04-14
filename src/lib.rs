@@ -189,6 +189,8 @@ enum BuildType<'a> {
     Any,
     Bin(&'a str),
     Example(&'a str),
+    Test(&'a str),
+    Bench(&'a str),
     Lib,
 }
 
@@ -196,7 +198,10 @@ impl<'a> BuildType<'a> {
     fn matches(&self, artifact: &Artifact) -> bool {
         match self {
             BuildType::Any => true,
-            BuildType::Bin(target_name) | BuildType::Example(target_name) => {
+            BuildType::Bin(target_name)
+            | BuildType::Example(target_name)
+            | BuildType::Test(target_name)
+            | BuildType::Bench(target_name) => {
                 artifact.target.name == *target_name && artifact.executable.is_some()
             }
             BuildType::Lib => artifact.target.kind.iter().any(|s| s == "lib"),
@@ -207,22 +212,6 @@ impl<'a> BuildType<'a> {
 fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, failure::Error> {
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
-
-    fn at_least_two_are_true(a: bool, b: bool, c: bool) -> bool {
-        if a {
-            b || c
-        } else {
-            b && c
-        }
-    }
-
-    let bin = matches.is_present("bin");
-    let example = matches.is_present("example");
-    let lib = matches.is_present("lib");
-
-    if at_least_two_are_true(bin, example, lib) {
-        bail!("Only one of `--bin`, `--example` or `--lib` must be specified")
-    }
 
     let mut metadata_command = MetadataCommand::new();
     let mut cargo = Command::new("cargo");
@@ -251,17 +240,21 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
         metadata_command.features(CargoOpt::SomeFeatures(vec![features.to_owned()]));
     }
 
-    let build_type = if bin {
-        let bin_name = matches.value_of("bin").unwrap();
-        cargo.args(&["--bin", bin_name]);
-        BuildType::Bin(bin_name)
-    } else if example {
-        let example_name = matches.value_of("example").unwrap();
-        cargo.args(&["--example", example_name]);
-        BuildType::Example(example_name)
-    } else if lib {
+    let build_type = if matches.is_present("lib") {
         cargo.args(&["--lib"]);
         BuildType::Lib
+    } else if let Some(bin_name) = matches.value_of("bin") {
+        cargo.args(&["--bin", bin_name]);
+        BuildType::Bin(bin_name)
+    } else if let Some(example_name) = matches.value_of("example") {
+        cargo.args(&["--example", example_name]);
+        BuildType::Example(example_name)
+    } else if let Some(test_name) = matches.value_of("test") {
+        cargo.args(&["--test", test_name]);
+        BuildType::Test(test_name)
+    } else if let Some(bench_name) = matches.value_of("bench") {
+        cargo.args(&["--bench", bench_name]);
+        BuildType::Bench(bench_name)
     } else {
         BuildType::Any
     };
@@ -382,10 +375,17 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
     let app = if tool.needs_build() {
         app.arg(
+            Arg::with_name("lib")
+                .long("lib")
+                .conflicts_with_all(&["bin", "example", "test", "bench"])
+                .help("Build only this package's library"),
+        )
+        .arg(
             Arg::with_name("bin")
                 .long("bin")
                 .takes_value(true)
                 .value_name("NAME")
+                .conflicts_with_all(&["lib", "example", "test", "bench"])
                 .help("Build only the specified binary"),
         )
         .arg(
@@ -393,12 +393,24 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                 .long("example")
                 .takes_value(true)
                 .value_name("NAME")
+                .conflicts_with_all(&["lib", "bin", "test", "bench"])
                 .help("Build only the specified example"),
         )
         .arg(
-            Arg::with_name("lib")
-                .long("lib")
-                .help("Build only this package's library"),
+            Arg::with_name("test")
+                .long("test")
+                .takes_value(true)
+                .value_name("NAME")
+                .conflicts_with_all(&["lib", "bin", "example", "bench"])
+                .help("Build only the specified test target"),
+        )
+        .arg(
+            Arg::with_name("bench")
+                .long("bench")
+                .takes_value(true)
+                .value_name("NAME")
+                .conflicts_with_all(&["lib", "bin", "example", "test"])
+                .help("Build only the specified bench target"),
         )
         .arg(
             Arg::with_name("release")
