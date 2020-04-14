@@ -329,8 +329,11 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     let app = App::new(format!("cargo-{}", name))
         .about(&*about)
         .version(env!("CARGO_PKG_VERSION"))
-        .setting(AppSettings::TrailingVarArg)
-        .setting(AppSettings::DontCollapseArgsInUsage)
+        .settings(&[
+            AppSettings::UnifiedHelpMessage,
+            AppSettings::DeriveDisplayOrder,
+            AppSettings::DontCollapseArgsInUsage,
+        ])
         // as this is used as a Cargo subcommand the first argument will be the name of the binary
         // we ignore this argument
         .arg(Arg::with_name("binary-name").hidden(true))
