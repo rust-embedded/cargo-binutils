@@ -6,7 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, str};
 
-use cargo_metadata::{parse_messages, Artifact, CargoOpt, Message, MetadataCommand};
+use cargo_metadata::{parse_messages, Artifact, CargoOpt, Message, Metadata, MetadataCommand};
 use clap::{App, AppSettings, Arg};
 use failure::bail;
 use rustc_cfg::Cfg;
@@ -83,11 +83,10 @@ where
 impl Context {
     /* Constructors */
     /// Get a context structure from a built artifact.
-    fn from_artifact(artifact: &Artifact) -> Result<Self, failure::Error> {
+    fn from_artifact(metadata: Metadata, artifact: &Artifact) -> Result<Self, failure::Error> {
         // Get target from artifact. Ideally, the artifact should really contain
         // the target triple. Sadly, it doesn't. So as an approximation, we
         // extract it from the filename path.
-        let metadata = cargo_metadata::MetadataCommand::new().exec()?;
 
         // Should always succeed.
         let target_path = artifact.filenames[0].strip_prefix(metadata.target_directory)?;
@@ -110,9 +109,7 @@ impl Context {
 
     /// Get a context structure from a provided target flag, used when cargo
     /// was not used to build the binary.
-    fn from_flag(target_flag: Option<&str>) -> Result<Self, failure::Error> {
-        let metadata = cargo_metadata::MetadataCommand::new().exec().ok();
-
+    fn from_flag(metadata: Metadata, target_flag: Option<&str>) -> Result<Self, failure::Error> {
         let meta = rustc_version::version_meta()?;
         let host = meta.host;
         let host_target_name = host;
@@ -121,13 +118,7 @@ impl Context {
         let mut config_target_name = None;
         let config: toml::Value;
 
-        let root_dir = if let Some(metadata) = metadata {
-            metadata.workspace_root
-        } else {
-            std::env::current_dir()?
-        };
-
-        if let Some(path) = search(&root_dir, ".cargo/config") {
+        if let Some(path) = search(&metadata.workspace_root, ".cargo/config") {
             config = parse(&path.join(".cargo/config"))?;
             config_target_name = config
                 .get("build")
@@ -204,7 +195,9 @@ impl<'a> BuildType<'a> {
     }
 }
 
-fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, failure::Error> {
+fn determine_artifact(
+    matches: &clap::ArgMatches,
+) -> Result<(Metadata, Option<Artifact>), failure::Error> {
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
 
@@ -309,7 +302,7 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
         bail!("Could not determine the wanted artifact");
     }
 
-    Ok(wanted_artifact)
+    Ok((metadata, wanted_artifact))
 }
 
 pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32, failure::Error> {
@@ -401,7 +394,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     let target_flag = matches.value_of("target");
 
     // Figure out which artifact to use with the tool
-    let artifact = determine_artifact(&matches)?;
+    let (metadata, artifact) = determine_artifact(&matches)?;
 
     let mut tool_args = vec![];
     if let Some(arg) = matches.value_of("--") {
@@ -413,9 +406,9 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     }
 
     let ctxt = if let Some(artifact) = &artifact {
-        Context::from_artifact(artifact)?
+        Context::from_artifact(metadata, artifact)?
     } else {
-        Context::from_flag(target_flag)?
+        Context::from_flag(metadata, target_flag)?
     };
 
     let mut lltool = ctxt.tool(tool, &ctxt.target);
