@@ -6,7 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, str};
 
-use cargo_metadata::{parse_messages, Artifact, Message};
+use cargo_metadata::{parse_messages, Artifact, CargoOpt, Message, MetadataCommand};
 use clap::{App, AppSettings, Arg};
 use failure::bail;
 use rustc_cfg::Cfg;
@@ -185,6 +185,25 @@ fn exe(name: &str) -> Cow<str> {
     name.into()
 }
 
+enum BuildType<'a> {
+    Any,
+    Bin(&'a str),
+    Example(&'a str),
+    Lib,
+}
+
+impl<'a> BuildType<'a> {
+    fn matches(&self, artifact: &Artifact) -> bool {
+        match self {
+            BuildType::Any => true,
+            BuildType::Bin(target_name) | BuildType::Example(target_name) => {
+                artifact.target.name == *target_name && artifact.executable.is_some()
+            }
+            BuildType::Lib => artifact.target.kind.iter().any(|s| s == "lib"),
+        }
+    }
+}
+
 fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, failure::Error> {
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
@@ -205,6 +224,7 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
         bail!("Only one of `--bin`, `--example` or `--lib` must be specified")
     }
 
+    let mut metadata_command = MetadataCommand::new();
     let mut cargo = Command::new("cargo");
     cargo.arg("build");
 
@@ -216,24 +236,25 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
 
     if matches.is_present("all-features") {
         cargo.arg("--all-features");
+        metadata_command.features(CargoOpt::AllFeatures);
     } else if let Some(features) = matches.value_of("features") {
         cargo.args(&["--features", features]);
+        metadata_command.features(CargoOpt::SomeFeatures(vec![features.to_owned()]));
     }
 
-    let artifact_name = if bin {
+    let build_type = if bin {
         let bin_name = matches.value_of("bin").unwrap();
         cargo.args(&["--bin", bin_name]);
-        bin_name
+        BuildType::Bin(bin_name)
     } else if example {
         let example_name = matches.value_of("example").unwrap();
         cargo.args(&["--example", example_name]);
-        example_name
+        BuildType::Example(example_name)
     } else if lib {
-        let lib_name = matches.value_of("lib").unwrap();
-        cargo.args(&["--lib", lib_name]);
-        lib_name
+        cargo.args(&["--lib"]);
+        BuildType::Lib
     } else {
-        ""
+        BuildType::Any
     };
 
     if matches.is_present("release") {
@@ -247,6 +268,14 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
         eprintln!("{:?}", cargo);
     }
 
+    let metadata = metadata_command.exec()?;
+    if metadata.workspace_members.len() == 0 {
+        bail!("Unable to find workspace member");
+    } else if metadata.workspace_members.len() != 1 {
+        bail!("Can only have one matching workspace member but found several");
+    }
+    let package_id = metadata.workspace_members[0].clone();
+
     let mut child = cargo.spawn()?;
     let stdout = child.stdout.take().expect("Pipe to cargo process failed");
 
@@ -254,14 +283,12 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
     for message in parse_messages(stdout) {
         match message? {
             Message::CompilerArtifact(artifact) => {
-                if artifact.target.name == artifact_name
-                    || artifact_name.is_empty() && artifact.executable.is_some()
-                {
+                if artifact.package_id == package_id && build_type.matches(&artifact) {
                     if wanted_artifact.is_some() {
                         bail!("Can only have one matching artifact but found several");
                     }
 
-                    wanted_artifact = Some(artifact.clone());
+                    wanted_artifact = Some(artifact);
                 }
             }
             Message::CompilerMessage(msg) => {
