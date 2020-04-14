@@ -228,6 +228,15 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
     let mut cargo = Command::new("cargo");
     cargo.arg("build");
 
+    if matches.is_present("quiet") {
+        cargo.arg("--quiet");
+    }
+
+    if let Some(color) = matches.value_of("color") {
+        cargo.arg("--color");
+        cargo.arg(color);
+    }
+
     // NOTE we do *not* use `project.target()` here because Cargo will figure things out on
     // its own (i.e. it will search and parse .cargo/config, etc.)
     if let Some(target) = target_flag {
@@ -338,6 +347,12 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         // we ignore this argument
         .arg(Arg::with_name("binary-name").hidden(true))
         .arg(
+            Arg::with_name("quiet")
+                .long("quiet")
+                .short("q")
+                .help("Don't print build output from `cargo build`"),
+        )
+        .arg(
             Arg::with_name("target")
                 .long("target")
                 .takes_value(true)
@@ -349,6 +364,13 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                 .long("verbose")
                 .short("v")
                 .help("Use verbose output"),
+        )
+        .arg(
+            Arg::with_name("color")
+                .long("color")
+                .takes_value(true)
+                .possible_values(&["auto", "always", "never"])
+                .help("Coloring: auto, always, never"),
         )
         .arg(
             Arg::with_name("args")
