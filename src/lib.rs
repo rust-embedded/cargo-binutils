@@ -442,10 +442,6 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     let artifact = determine_artifact(&matches)?;
 
     let mut tool_args = vec![];
-    if let Some(arg) = matches.value_of("--") {
-        tool_args.push(arg);
-    }
-
     if let Some(args) = matches.values_of("args") {
         tool_args.extend(args);
     }
