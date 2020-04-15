@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fixed handling of `--lib` argument to reflect how its used with `cargo build`
 - Fixed `--` argument handling to ensure argument validation
 - Fixed `--lib` to be able to support `lib`, `rlib`, `dylib`, `cdylib`, etc.
+- Fixed panic due to broken pipe, caused by `bail!` while `cargo build` is running.
+  Additionally fixes broken output format due to interrupted stderr output from `cargo build`
 
 ### Changed
 
