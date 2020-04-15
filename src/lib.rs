@@ -84,9 +84,12 @@ impl Context {
     /* Constructors */
     /// Get a context structure from a built artifact.
     fn from_artifact(metadata: Metadata, artifact: &Artifact) -> Result<Self, failure::Error> {
-        // Get target from artifact. Ideally, the artifact should really contain
-        // the target triple. Sadly, it doesn't. So as an approximation, we
-        // extract it from the filename path.
+        // Currently there is no clean way to get the target triple from cargo so we can only make
+        // an approximation, we do this by extracting the target triple from the artifacts path.
+        // For more info on the path structure see: https://doc.rust-lang.org/cargo/guide/build-cache.html
+        // In the future once the feature becomes stable we will be able to use
+        // `cargo build --build-plan` to get the target triple.
+        // See: https://github.com/rust-lang/cargo/issues/5579
 
         // Should always succeed.
         let target_path = artifact.filenames[0].strip_prefix(metadata.target_directory)?;
