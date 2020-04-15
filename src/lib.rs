@@ -226,6 +226,11 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
         cargo.arg(color);
     }
 
+    if let Some(package) = matches.value_of("package") {
+        cargo.arg("--package");
+        cargo.arg(package);
+    }
+
     // NOTE we do *not* use `project.target()` here because Cargo will figure things out on
     // its own (i.e. it will search and parse .cargo/config, etc.)
     if let Some(target) = target_flag {
@@ -272,11 +277,8 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
 
     let metadata = metadata_command.exec()?;
     if metadata.workspace_members.len() == 0 {
-        bail!("Unable to find workspace member");
-    } else if metadata.workspace_members.len() != 1 {
-        bail!("Can only have one matching workspace member but found several");
+        bail!("Unable to find workspace members");
     }
-    let package_id = metadata.workspace_members[0].clone();
 
     let mut child = cargo.spawn()?;
     let stdout = child.stdout.take().expect("Pipe to cargo process failed");
@@ -285,7 +287,7 @@ fn determine_artifact(matches: &clap::ArgMatches) -> Result<Option<Artifact>, fa
     for message in parse_messages(stdout) {
         match message? {
             Message::CompilerArtifact(artifact) => {
-                if artifact.package_id == package_id && build_type.matches(&artifact) {
+                if metadata.workspace_members.contains(&artifact.package_id) && build_type.matches(&artifact) {
                     if wanted_artifact.is_some() {
                         bail!("Can only have one matching artifact but found several");
                     }
@@ -375,6 +377,14 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
     let app = if tool.needs_build() {
         app.arg(
+            Arg::with_name("package")
+                .long("package")
+                .short("p")
+                .takes_value(true)
+                .value_name("SPEC")
+                .help("Package to build (see `cargo help pkgid`)"),
+        )
+        .arg(
             Arg::with_name("lib")
                 .long("lib")
                 .conflicts_with_all(&["bin", "example", "test", "bench"])

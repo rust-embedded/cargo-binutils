@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Added `--quiet` and `--color` arguments to be passed to `cargo build`
 - Added `--test` and `--bench` build arguments to allow targeting testing artifacts
+- Added `--package` argument so its possible to specify a target package in a workspace
 
 ### Fixed
 
