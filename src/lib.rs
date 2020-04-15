@@ -284,8 +284,16 @@ fn determine_artifact(
     let mut child = cargo.spawn()?;
     let stdout = child.stdout.take().expect("Pipe to cargo process failed");
 
+    // Note: We call `collect` to ensure we don't block stdout which could prevent the process from exiting
+    let messages = parse_messages(stdout).collect::<Vec<_>>();
+
+    let status = child.wait()?;
+    if !status.success() {
+        bail!("Failed to parse crate metadata");
+    }
+
     let mut wanted_artifact = None;
-    for message in parse_messages(stdout) {
+    for message in messages {
         match message? {
             Message::CompilerArtifact(artifact) => {
                 if metadata.workspace_members.contains(&artifact.package_id) && build_type.matches(&artifact) {
@@ -303,11 +311,6 @@ fn determine_artifact(
             }
             _ => (),
         }
-    }
-
-    let status = child.wait()?;
-    if !status.success() {
-        bail!("Failed to parse crate metadata");
     }
 
     if wanted_artifact.is_none() {
