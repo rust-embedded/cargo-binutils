@@ -204,7 +204,12 @@ impl<'a> BuildType<'a> {
             | BuildType::Bench(target_name) => {
                 artifact.target.name == *target_name && artifact.executable.is_some()
             }
-            BuildType::Lib => artifact.target.kind.iter().any(|s| s == "lib"),
+            // For info about 'kind' values see:
+            // https://github.com/rust-lang/cargo/blob/d47a9545db81fe6d7e6c542bc8154f09d0e6c788/src/cargo/core/manifest.rs#L166-L181
+            // Since LibKind can be an arbitrary string `LibKind:Other(String)` we filter by what it can't be
+            BuildType::Lib => artifact.target.kind.iter().any(|s| {
+                s != "bin" && s != "example" && s != "test" && s != "custom-build" && s != "bench"
+            }),
         }
     }
 }

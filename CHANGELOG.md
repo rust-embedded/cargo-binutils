@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Fixed handling of `--lib` argument to reflect how its used with `cargo build`
 - Fixed `--` argument handling to ensure argument validation
+- Fixed `--lib` to be able to support `lib`, `rlib`, `dylib`, `cdylib`, etc.
 
 ### Changed
 
