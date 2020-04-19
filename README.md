@@ -203,6 +203,11 @@ Used to change the linker or providing a workaround if `-C linker-flavor` is not
 linker = "rust-lld"
 ```
 
+## Minimum Supported Rust Version (MSRV)
+
+This crate is guaranteed to compile on stable Rust 1.32.0 and up. It *might*
+compile with older versions but that may change in any new patch release.
+
 ## License
 
 Licensed under either of

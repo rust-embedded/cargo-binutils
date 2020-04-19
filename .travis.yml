@@ -13,6 +13,10 @@ matrix:
       env: T=x86_64-unknown-linux-musl
       if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
 
+    # MSRV
+    - rust: 1.32.0
+      env: T=x86_64-unknown-linux-musl
+
     - rust: stable
       os: osx
       env: T=x86_64-apple-darwin
@@ -22,6 +26,11 @@ matrix:
       env: T=x86_64-apple-darwin
       if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
 
+    # MSRV
+    - rust: 1.32.0
+      os: osx
+      env: T=x86_64-apple-darwin
+
     - rust: stable
       os: windows
       env: T=x86_64-pc-windows-msvc
@@ -30,6 +39,11 @@ matrix:
       os: windows
       env: T=x86_64-pc-windows-msvc
       if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
+
+    # MSRV
+    - rust: 1.32.0
+      os: windows
+      env: T=x86_64-pc-windows-msvc
 
 before_install: set -e
 
