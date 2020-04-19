@@ -16,12 +16,12 @@ matrix:
       env: T=x86_64-pc-windows-msvc
 
     # MSRV
-    - rust: 1.33.0
+    - rust: 1.38.0
       env: T=x86_64-unknown-linux-musl
-    - rust: 1.33.0
+    - rust: 1.38.0
       os: osx
       env: T=x86_64-apple-darwin
-    - rust: 1.33.0
+    - rust: 1.38.0
       os: windows
       env: T=x86_64-pc-windows-msvc
 
