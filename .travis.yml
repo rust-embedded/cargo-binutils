@@ -8,24 +8,30 @@ matrix:
   include:
     - rust: stable
       env: T=x86_64-unknown-linux-musl
-
-    - rust: nightly
-      env: T=x86_64-unknown-linux-musl
-      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
-
     - rust: stable
       os: osx
       env: T=x86_64-apple-darwin
-
-    - rust: nightly
-      os: osx
-      env: T=x86_64-apple-darwin
-      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
-
     - rust: stable
       os: windows
       env: T=x86_64-pc-windows-msvc
 
+    # MSRV
+    - rust: 1.38.0
+      env: T=x86_64-unknown-linux-musl
+    - rust: 1.38.0
+      os: osx
+      env: T=x86_64-apple-darwin
+    - rust: 1.38.0
+      os: windows
+      env: T=x86_64-pc-windows-msvc
+
+    - rust: nightly
+      env: T=x86_64-unknown-linux-musl
+      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
+    - rust: nightly
+      os: osx
+      env: T=x86_64-apple-darwin
+      if: (branch = staging OR branch = trying) OR (type = pull_request AND branch = master)
     - rust: nightly
       os: windows
       env: T=x86_64-pc-windows-msvc
