@@ -1,10 +1,5 @@
-extern crate cargo_binutils as cbu;
-
-use std::process;
+extern crate cargo_binutils as binutils;
 
 fn main() {
-    match cbu::forward("llvm-readobj") {
-        Err(e) => eprintln!("error: {}", e),
-        Ok(ec) => process::exit(ec),
-    }
+    binutils::Tool::Readobj.rust_exec()
 }

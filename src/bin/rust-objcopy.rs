@@ -1,10 +1,5 @@
-extern crate cargo_binutils as cbu;
-
-use std::process;
+extern crate cargo_binutils as binutils;
 
 fn main() {
-    match cbu::forward("llvm-objcopy") {
-        Err(e) => eprintln!("error: {}", e),
-        Ok(ec) => process::exit(ec),
-    }
+    binutils::Tool::Objcopy.rust_exec()
 }

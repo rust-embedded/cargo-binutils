@@ -1,8 +1,7 @@
 #![deny(warnings)]
 
-use std::borrow::Cow;
 use std::io::{self, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Component, Path};
 use std::process::{Command, Stdio};
 use std::{env, str};
 
@@ -10,43 +9,13 @@ use cargo_metadata::{parse_messages, Artifact, CargoOpt, Message, Metadata, Meta
 use clap::{App, AppSettings, Arg};
 use failure::bail;
 use rustc_cfg::Cfg;
-use walkdir::WalkDir;
+
+pub use tool::Tool;
 
 mod llvm;
 mod postprocess;
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum Tool {
-    Nm,
-    Objcopy,
-    Objdump,
-    Profdata,
-    Readobj,
-    Size,
-    Strip,
-}
-
-impl Tool {
-    fn name(self) -> &'static str {
-        match self {
-            Tool::Nm => "nm",
-            Tool::Objcopy => "objcopy",
-            Tool::Objdump => "objdump",
-            Tool::Profdata => "profdata",
-            Tool::Readobj => "readobj",
-            Tool::Size => "size",
-            Tool::Strip => "strip",
-        }
-    }
-
-    // Whether this tool requires the project to be previously built
-    fn needs_build(self) -> bool {
-        match self {
-            Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Size | Tool::Readobj | Tool::Strip => true,
-            Tool::Profdata /* ? */ => false,
-        }
-    }
-}
+mod rustc;
+mod tool;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Endian {
@@ -167,16 +136,6 @@ impl Context {
 
         c
     }
-}
-
-#[cfg(target_os = "windows")]
-fn exe(name: &str) -> Cow<str> {
-    format!("{}.exe", name).into()
-}
-
-#[cfg(not(target_os = "windows"))]
-fn exe(name: &str) -> Cow<str> {
-    name.into()
 }
 
 enum BuildType<'a> {
@@ -475,7 +434,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
             // change it to the human readable GNU style
             lltool.arg("-elf-output-style=GNU");
         }
-        Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Profdata | Tool::Size | Tool::Strip => {}
+        _ => {}
     }
 
     // Artifact
@@ -492,6 +451,8 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
         };
 
         match tool {
+            // Tools that don't need a build
+            Tool::Ar | Tool::Lld | Tool::Profdata => {},
             // for some tools we change the CWD (current working directory) and
             // make the artifact path relative. This makes the path that the
             // tool will print easier to read. e.g. `libfoo.rlib` instead of
@@ -501,7 +462,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
                     .current_dir(file.parent().unwrap())
                     .arg(file.file_name().unwrap());
             }
-            Tool::Objcopy | Tool::Profdata | Tool::Strip => {
+            Tool::Objcopy | Tool::Strip => {
                 lltool.arg(file);
             }
         }
@@ -521,9 +482,9 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
     // post process output
     let pp_output = match tool {
-        Tool::Objdump | Tool::Nm | Tool::Readobj => postprocess::demangle(&output.stdout),
+        Tool::Ar | Tool::Lld | Tool::Objcopy | Tool::Profdata | Tool::Strip => output.stdout.into(),
+        Tool::Nm | Tool::Objdump | Tool::Readobj => postprocess::demangle(&output.stdout),
         Tool::Size => postprocess::size(&output.stdout),
-        Tool::Objcopy | Tool::Profdata | Tool::Strip => output.stdout.into(),
     };
 
     stdout.write_all(&*pp_output)?;
@@ -533,40 +494,4 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
     } else {
         Ok(output.status.code().unwrap_or(1))
     }
-}
-
-pub fn forward(tool: &str) -> Result<i32, failure::Error> {
-    let path = search_tool(tool)?;
-
-    // NOTE(`skip`) the first argument is the name of the binary (e.g. `rust-nm`)
-    let status = Command::new(path).args(env::args().skip(1)).status()?;
-
-    if status.success() {
-        Ok(0)
-    } else {
-        Ok(status.code().unwrap_or(101))
-    }
-}
-
-fn search_tool(tool: &str) -> Result<PathBuf, failure::Error> {
-    let sysroot = String::from_utf8(
-        Command::new("rustc")
-            .arg("--print")
-            .arg("sysroot")
-            .output()?
-            .stdout,
-    )?;
-
-    for entry in WalkDir::new(sysroot.trim()) {
-        let entry = entry?;
-
-        if entry.file_name() == &*exe(tool) {
-            return Ok(entry.into_path());
-        }
-    }
-
-    bail!(
-        "`llvm-tools-preview` component is missing or empty. Install it with `rustup component \
-         add llvm-tools-preview`"
-    );
 }
