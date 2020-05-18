@@ -1,5 +1,3 @@
-extern crate cargo_binutils as binutils;
-
 fn main() {
-    binutils::Tool::Lld.rust_exec()
+    cargo_binutils::Tool::Lld.rust_exec()
 }
