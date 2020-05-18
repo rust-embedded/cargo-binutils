@@ -1,9 +1,6 @@
-extern crate cargo_binutils as cbu;
-extern crate clap;
-
 use std::process;
 
-use crate::cbu::Tool;
+use cargo_binutils::Tool;
 
 const EXAMPLES: &str = "
 
@@ -13,7 +10,7 @@ EXAMPLES
 `cargo nm --lib -- -print-size -size-sort` - lists all symbols sorted by size (smallest first)";
 
 fn main() {
-    match cbu::run(Tool::Nm, Some(EXAMPLES)) {
+    match cargo_binutils::run(Tool::Nm, Some(EXAMPLES)) {
         Err(e) => eprintln!("error: {}", e),
         Ok(ec) => process::exit(ec),
     }

@@ -20,10 +20,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fixed `--lib` to be able to support `lib`, `rlib`, `dylib`, `cdylib`, etc.
 - Fixed panic due to broken pipe, caused by `bail!` while `cargo build` is running.
   Additionally fixes broken output format due to interrupted stderr output from `cargo build`
+- Fixed `rust-*` binaries exiting with exit code 0 if the tool was not found
 
 ### Changed
 
 - Changed help output to more closely reflect the help command of `cargo` subcommands
+- Removed `walkdir` dependency by using expected path to tool executable
 
 ## [v0.2.0] - 2020-04-11
 
