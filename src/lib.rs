@@ -3,11 +3,11 @@
 use std::io::{self, BufReader, Write};
 use std::path::{Component, Path};
 use std::process::{Command, Stdio};
-use std::{env, str};
+use std::str;
 
+use anyhow::{bail, Result};
 use cargo_metadata::{Artifact, CargoOpt, Message, Metadata, MetadataCommand};
 use clap::{App, AppSettings, Arg};
-use failure::bail;
 use rustc_cfg::Cfg;
 
 pub use tool::Tool;
@@ -36,7 +36,7 @@ fn search<'p>(path: &'p Path, file: &str) -> Option<&'p Path> {
     path.ancestors().find(|dir| dir.join(file).exists())
 }
 
-fn parse<T>(path: &Path) -> Result<T, failure::Error>
+fn parse<T>(path: &Path) -> Result<T>
 where
     T: for<'de> serde::Deserialize<'de>,
 {
@@ -52,7 +52,7 @@ where
 impl Context {
     /* Constructors */
     /// Get a context structure from a built artifact.
-    fn from_artifact(metadata: Metadata, artifact: &Artifact) -> Result<Self, failure::Error> {
+    fn from_artifact(metadata: Metadata, artifact: &Artifact) -> Result<Self> {
         // Currently there is no clean way to get the target triple from cargo so we can only make
         // an approximation, we do this by extracting the target triple from the artifacts path.
         // For more info on the path structure see: https://doc.rust-lang.org/cargo/guide/build-cache.html
@@ -81,7 +81,7 @@ impl Context {
 
     /// Get a context structure from a provided target flag, used when cargo
     /// was not used to build the binary.
-    fn from_flag(metadata: Metadata, target_flag: Option<&str>) -> Result<Self, failure::Error> {
+    fn from_flag(metadata: Metadata, target_flag: Option<&str>) -> Result<Self> {
         let meta = rustc_version::version_meta()?;
         let host = meta.host;
         let host_target_name = host;
@@ -106,8 +106,8 @@ impl Context {
         Self::from_target_name(target_name)
     }
 
-    fn from_target_name(target_name: &str) -> Result<Self, failure::Error> {
-        let cfg = Cfg::of(target_name)?;
+    fn from_target_name(target_name: &str) -> Result<Self> {
+        let cfg = Cfg::of(target_name).map_err(|e| e.compat())?;
 
         Ok(Context {
             cfg,
@@ -167,9 +167,7 @@ impl<'a> BuildType<'a> {
     }
 }
 
-fn determine_artifact(
-    matches: &clap::ArgMatches,
-) -> Result<(Metadata, Option<Artifact>), failure::Error> {
+fn determine_artifact(matches: &clap::ArgMatches) -> Result<(Metadata, Option<Artifact>)> {
     let verbose = matches.is_present("verbose");
     let target_flag = matches.value_of("target");
 
@@ -281,7 +279,7 @@ fn determine_artifact(
     Ok((metadata, wanted_artifact))
 }
 
-pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32, failure::Error> {
+pub fn run(tool: Tool, examples: Option<&str>) -> Result<i32> {
     let name = tool.name();
     let about = format!(
         "Proxy for the `llvm-{}` tool shipped with the Rust toolchain.",

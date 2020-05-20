@@ -1,10 +1,10 @@
+use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
-use failure::Error;
-use std::env;
+use anyhow::Result;
 
-pub fn sysroot() -> Result<String, Error> {
+pub fn sysroot() -> Result<String> {
     let rustc = env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
     let output = Command::new(rustc).arg("--print").arg("sysroot").output()?;
     // Note: We must trim() to remove the `\n` from the end of stdout
@@ -12,7 +12,7 @@ pub fn sysroot() -> Result<String, Error> {
 }
 
 // See: https://github.com/rust-lang/rust/blob/564758c4c329e89722454dd2fbb35f1ac0b8b47c/src/bootstrap/dist.rs#L2334-L2341
-pub fn rustlib() -> Result<PathBuf, Error> {
+pub fn rustlib() -> Result<PathBuf> {
     let sysroot = sysroot()?;
     let mut pathbuf = PathBuf::from(sysroot);
     pathbuf.push("lib");
