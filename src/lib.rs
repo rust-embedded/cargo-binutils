@@ -1,11 +1,11 @@
 #![deny(warnings)]
 
-use std::io::{self, Write};
+use std::io::{self, BufReader, Write};
 use std::path::{Component, Path};
 use std::process::{Command, Stdio};
 use std::{env, str};
 
-use cargo_metadata::{parse_messages, Artifact, CargoOpt, Message, Metadata, MetadataCommand};
+use cargo_metadata::{Artifact, CargoOpt, Message, Metadata, MetadataCommand};
 use clap::{App, AppSettings, Arg};
 use failure::bail;
 use rustc_cfg::Cfg;
@@ -241,10 +241,10 @@ fn determine_artifact(
     }
 
     let mut child = cargo.spawn()?;
-    let stdout = child.stdout.take().expect("Pipe to cargo process failed");
+    let stdout = BufReader::new(child.stdout.take().expect("Pipe to cargo process failed"));
 
     // Note: We call `collect` to ensure we don't block stdout which could prevent the process from exiting
-    let messages = parse_messages(stdout).collect::<Vec<_>>();
+    let messages = Message::parse_stream(stdout).collect::<Vec<_>>();
 
     let status = child.wait()?;
     if !status.success() {
@@ -255,7 +255,9 @@ fn determine_artifact(
     for message in messages {
         match message? {
             Message::CompilerArtifact(artifact) => {
-                if metadata.workspace_members.contains(&artifact.package_id) && build_type.matches(&artifact) {
+                if metadata.workspace_members.contains(&artifact.package_id)
+                    && build_type.matches(&artifact)
+                {
                     if wanted_artifact.is_some() {
                         bail!("Can only have one matching artifact but found several");
                     }
@@ -452,7 +454,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 
         match tool {
             // Tools that don't need a build
-            Tool::Ar | Tool::Lld | Tool::Profdata => {},
+            Tool::Ar | Tool::Lld | Tool::Profdata => {}
             // for some tools we change the CWD (current working directory) and
             // make the artifact path relative. This makes the path that the
             // tool will print easier to read. e.g. `libfoo.rlib` instead of
