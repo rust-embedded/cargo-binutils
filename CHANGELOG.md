@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Changed help output to more closely reflect the help command of `cargo` subcommands
 - Removed `walkdir` dependency by using expected path to tool executable
 - Updated `cargo_metadata 0.9 -> 0.10`
+- Replaced `failure` dependency with [`anyhow`](https://github.com/dtolnay/anyhow)
 
 ## [v0.2.0] - 2020-04-11
 

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{env, process};
 
-use failure::Error;
+use anyhow::Result;
 
 use crate::rustc::rustlib;
 
@@ -38,11 +38,11 @@ impl Tool {
     pub fn exe(self) -> String {
         match self {
             Tool::Lld => format!("rust-lld{}", EXE_SUFFIX),
-            _ => format!("llvm-{}{}", self.name(), EXE_SUFFIX)
+            _ => format!("llvm-{}{}", self.name(), EXE_SUFFIX),
         }
     }
 
-    pub fn path(self) -> Result<PathBuf, Error> {
+    pub fn path(self) -> Result<PathBuf> {
         let mut path = rustlib()?;
         path.push(self.exe());
         Ok(path)
