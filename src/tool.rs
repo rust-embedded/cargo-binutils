@@ -76,8 +76,24 @@ impl Tool {
         process::exit(status.code().unwrap_or(101));
     }
 
+    /// Parses arguments for `cargo $tool` and then if needed executes `cargo build`
+    /// before parsing the required arguments to `rust-$tool`.
+    /// If the tool fails to start or is not found this process exits with
+    /// status code 101 the same as if the process has a panic!
+    pub fn cargo_exec(self, examples: Option<&str>) -> ! {
+        let matches = crate::args(self, examples);
+
+        match crate::run(self, matches) {
+            Err(e) => {
+                eprintln!("error: {}", e);
+                process::exit(101)
+            }
+            Ok(ec) => process::exit(ec),
+        }
+    }
+
     // Whether this tool requires the project to be previously built
-    pub(crate) fn needs_build(self) -> bool {
+    pub fn needs_build(self) -> bool {
         match self {
             Tool::Ar | Tool::Lld | Tool::Profdata => false,
             Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Readobj | Tool::Size | Tool::Strip => {

@@ -1,7 +1,3 @@
-use std::process;
-
-use cargo_binutils::Tool;
-
 const EXAMPLES: &str = "
 
 EXAMPLES
@@ -10,8 +6,5 @@ EXAMPLES
 `cargo nm --lib -- -print-size -size-sort` - lists all symbols sorted by size (smallest first)";
 
 fn main() {
-    match cargo_binutils::run(Tool::Nm, Some(EXAMPLES)) {
-        Err(e) => eprintln!("error: {}", e),
-        Ok(ec) => process::exit(ec),
-    }
+    cargo_binutils::Tool::Nm.cargo_exec(Some(EXAMPLES))
 }
