@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::str;
 
 use regex::{Captures, Regex};
-use rustc_demangle;
 
 // Here we post process the output of some tools to improve. If the output of the tool is not valid
 // UTF-8 then we don't touch it.

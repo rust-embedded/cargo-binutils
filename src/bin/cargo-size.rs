@@ -1,7 +1,3 @@
-use std::process;
-
-use cargo_binutils::Tool;
-
 const EXAMPLES: &str = "
 
 EXAMPLES
@@ -10,8 +6,5 @@ EXAMPLES
 `cargo size --bin foo --release -- -A`  - prints binary size in System V format";
 
 fn main() {
-    match cargo_binutils::run(Tool::Size, Some(EXAMPLES)) {
-        Err(e) => eprintln!("error: {}", e),
-        Ok(ec) => process::exit(ec),
-    }
+    cargo_binutils::Tool::Size.cargo_exec(Some(EXAMPLES))
 }

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Added `--quiet` and `--color` arguments to be passed to `cargo build`
 - Added `--test` and `--bench` build arguments to allow targeting testing artifacts
 - Added `--package` argument so its possible to specify a target package in a workspace
+- Added `--no-default-features` cargo argument support
+- Added `--profile` argument to allow specifying the profile to build the target package with
+- Added `--frozen`, `--locked`, `--offline` cargo argument support
+- Added `-Z` argument to allow use of unstable cargo features
 
 ### Fixed
 
@@ -21,6 +25,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fixed panic due to broken pipe, caused by `bail!` while `cargo build` is running.
   Additionally fixes broken output format due to interrupted stderr output from `cargo build`
 - Fixed `rust-*` binaries exiting with exit code 0 if the tool was not found
+- Fixed `cargo build` running for `cargo profdata` when its not required
+- Fixed `--features` not allowing multiple
 
 ### Changed
 
@@ -28,6 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Removed `walkdir` dependency by using expected path to tool executable
 - Updated `cargo_metadata 0.9 -> 0.10`
 - Replaced `failure` dependency with [`anyhow`](https://github.com/dtolnay/anyhow)
+- Allowed  multiple levels of verbosity and verbose cargo output via `-vv` and `-vvv`
 
 ## [v0.2.0] - 2020-04-11
 
