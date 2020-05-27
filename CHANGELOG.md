@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.0] - 2020-05-28
+
 ### Added
 
 - Added `--quiet` and `--color` arguments to be passed to `cargo build`
@@ -128,7 +130,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.0...HEAD
+[v0.3.0]: https://github.com/rust-embedded/cargo-binutils/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.7...v0.2.0
 [v0.1.7]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.5...v0.1.6
