@@ -1,6 +1,9 @@
 [package]
 edition = "2018"
-authors = ["Jorge Aparicio <jorge@japaric.io>"]
+authors = [
+    "The Tools Team <tools@teams.rust-embedded.org>",
+    "Jorge Aparicio <jorge@japaric.io>",
+]
 categories = ["command-line-utilities", "development-tools"]
 description = "Proxy for LLVM tools like llvm-nm, llvm-objdump and llvm-size"
 documentation = "https://github.com/rust-embedded/cargo-binutils#cargo-binutils"
@@ -9,7 +12,7 @@ license = "MIT OR Apache-2.0"
 name = "cargo-binutils"
 readme = "README.md"
 repository = "https://github.com/rust-embedded/cargo-binutils/"
-version = "0.2.0"
+version = "0.3.0"
 
 [dependencies]
 cargo_metadata = "0.10"
