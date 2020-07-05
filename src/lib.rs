@@ -491,9 +491,11 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (Bu
         for feature in features {
             cargo.args(&["--features", feature]);
         }
-    } else if matches.is_present("no-default-features") {
+    }
+    if matches.is_present("no-default-features") {
         cargo.arg("--no-default-features");
-    } else if matches.is_present("all-features") {
+    }
+    if matches.is_present("all-features") {
         cargo.arg("--all-features");
     }
 
