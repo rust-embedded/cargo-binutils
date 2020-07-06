@@ -50,6 +50,10 @@ $ cargo build --example foo
 $ rust-size target/examples/foo
 ```
 
+These commands take similar options to `cargo build` and you can specify
+a specific binary with `--bin NAME`, an example with `--example NAME`
+or the default binary by not passing `--bin` or `--example`.
+
 In the case of `cargo-objdump` the architecture of the compilation target is
 passed as `-arch-name=$target` to `llvm-objdump`. `-arch-name` specifies to
 which architecture disassemble the object file to.
