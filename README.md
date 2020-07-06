@@ -78,7 +78,7 @@ these tools may change as new Rust releases are made.
 List all symbols in an executable
 
 ``` console
-$ cargo nm --bin app --release
+$ cargo nm --release
 0800040a T BusFault
 0800040a T DebugMonitor
 0800040a T DefaultHandler
@@ -100,7 +100,7 @@ $ cargo nm --bin app --release
 List all symbols in an executable sorted by size (smallest first).
 
 ``` console
-$ cargo nm --bin app --release -- -print-size -size-sort
+$ cargo nm --release -- -print-size -size-sort
 0800040a 00000002 T DefaultHandler
 08000408 00000002 T UserHardFault
 08000004 00000004 R __RESET_VECTOR
@@ -115,7 +115,7 @@ $ cargo nm --bin app --release -- -print-size -size-sort
 Transform the output of Cargo (ELF) into binary format.
 
 ``` console
-$ cargo objcopy --bin app --release -- -O binary app.bin
+$ cargo objcopy --release -- -O binary app.bin
 
 $ stat --printf="%s\n" app.bin
 1642
@@ -126,7 +126,7 @@ $ stat --printf="%s\n" app.bin
 Disassemble a binary.
 
 ``` console
-$ cargo objdump --bin app --release -- -disassemble -no-show-raw-insn
+$ cargo objdump --release -- -disassemble -no-show-raw-insn
 target/thumbv7m-none-eabi/debug/app:    file format ELF32-arm-little
 
 Disassembly of section .text:
@@ -155,7 +155,7 @@ Reset:
 Print binary size in System V format
 
 ``` console
-$ cargo size --bin app --release -- -A -x
+$ cargo size --release -- -A -x
 target/thumbv7m-none-eabi/release/app  :
 section               size         addr
 .vector_table        0x400    0x8000000
@@ -186,7 +186,7 @@ Strip all symbols from the build artifact
 $ stat --printf="%s\n" target/release/hello
 4094240
 
-$ cargo-strip --bin hello --release -- -strip-all -O smaller-hello
+$ cargo-strip --release -- -strip-all -O smaller-hello
 
 $ stat --printf="%s\n" smaller-hello
 424432
