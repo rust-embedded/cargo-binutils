@@ -280,9 +280,11 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
         metadata_command.features(CargoOpt::SomeFeatures(
             features.map(|s| s.to_owned()).collect(),
         ));
-    } else if matches.is_present("no-default-features") {
+    }
+    if matches.is_present("no-default-features") {
         metadata_command.features(CargoOpt::NoDefaultFeatures);
-    } else if matches.is_present("all-features") {
+    }
+    if matches.is_present("all-features") {
         metadata_command.features(CargoOpt::AllFeatures);
     }
     let metadata = metadata_command.exec()?;
