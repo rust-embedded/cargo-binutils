@@ -120,7 +120,6 @@ enum BuildType<'a> {
 impl<'a> BuildType<'a> {
     fn matches(&self, artifact: &Artifact) -> bool {
         match self {
-            BuildType::Any => true,
             BuildType::Bin(target_name)
             | BuildType::Example(target_name)
             | BuildType::Test(target_name)
@@ -129,6 +128,13 @@ impl<'a> BuildType<'a> {
             }
             // For info about 'kind' values see:
             // https://github.com/rust-lang/cargo/blob/d47a9545db81fe6d7e6c542bc8154f09d0e6c788/src/cargo/core/manifest.rs#L166-L181
+            // The only "Any" artifacts we can support are bins and examples, so let's make sure
+            // no-one slips us a "custom-build" in form of a build.rs in
+            BuildType::Any => artifact
+                .target
+                .kind
+                .iter()
+                .any(|s| s == "bin" || s == "example"),
             // Since LibKind can be an arbitrary string `LibKind:Other(String)` we filter by what it can't be
             BuildType::Lib => artifact.target.kind.iter().any(|s| {
                 s != "bin" && s != "example" && s != "test" && s != "custom-build" && s != "bench"
