@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.1] - 2020-07-30
+
+### Fixed
+
+- Fixed confusion caused by `build.rs` in the project generating an virtual
+  artifact resulting in `error: Can only have one matching artifact but found
+  several`
+
+### Changed
+
+- Allow the combination of `--features` `--no-default-features` and `--all-features` flags
+
 ## [v0.3.0] - 2020-05-28
 
 ### Added
@@ -130,7 +142,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.1...HEAD
+[v0.3.1]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/rust-embedded/cargo-binutils/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.7...v0.2.0
 [v0.1.7]: https://github.com/rust-embedded/cargo-binutils/compare/v0.1.6...v0.1.7
