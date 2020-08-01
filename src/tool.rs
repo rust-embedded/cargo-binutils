@@ -54,7 +54,11 @@ impl Tool {
     pub fn rust_exec(self) -> ! {
         let path = match self.path() {
             Err(e) => {
-                eprintln!("Failed to find tool: {}\n{}", self.name(), e);
+                eprintln!("Failed to find llvm tool: {}\n\
+                {}\n\
+                Please ensure `rustc` is in your PATH or RUSTC environment variable.\n\
+                You should be able to run `rustc --print sysroot` and `rustc -vV`\n\
+                If the issue persists please open an issue: https://github.com/rust-embedded/cargo-binutils/issues", self.name(), e);
                 process::exit(101)
             }
             Ok(p) => p,
@@ -64,9 +68,17 @@ impl Tool {
         let args = env::args().skip(1);
 
         // Spawn the process and check if the process did spawn
-        let status = match Command::new(path).args(args).status() {
+        let status = match Command::new(&path).args(args).status() {
             Err(e) => {
-                eprintln!("Failed to execute tool: {}\n{}", self.name(), e);
+                eprintln!(
+                    "Failed to execute llvm tool {} from {:?}\n
+                    {}\n\
+                    Please ensure you have run `rustup component add llvm-tools-preview`\n\
+                    If the issue persists please open an issue: https://github.com/rust-embedded/cargo-binutils/issues",
+                    self.name(),
+                    path,
+                    e
+                );
                 process::exit(101)
             }
             Ok(s) => s,
