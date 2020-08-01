@@ -1,12 +1,12 @@
 #![deny(warnings)]
 
 use std::io::{self, BufReader, Write};
-use std::path::{Component, Path};
+use std::path::Component;
 use std::process::{Command, Stdio};
 use std::{env, str};
 
 use anyhow::{bail, Result};
-use cargo_metadata::{Artifact, CargoOpt, Message, Metadata, MetadataCommand};
+use cargo_metadata::{Artifact, CargoOpt, Message, MetadataCommand};
 use clap::{App, AppSettings, Arg, ArgMatches};
 use rustc_cfg::Cfg;
 
@@ -17,126 +17,32 @@ mod postprocess;
 mod rustc;
 mod tool;
 
-/// Search for `file` in `path` and its parent directories
-fn search<'p>(path: &'p Path, file: &str) -> Option<&'p Path> {
-    path.ancestors().find(|dir| dir.join(file).exists())
-}
-
-fn parse<T>(path: &Path) -> Result<T>
-where
-    T: for<'de> serde::Deserialize<'de>,
-{
-    use std::fs::File;
-    use std::io::Read;
-    use toml::de;
-
-    let mut s = String::new();
-    File::open(path)?.read_to_string(&mut s)?;
-    Ok(de::from_str(&s)?)
-}
-
-/// Execution context
-// TODO this should be some sort of initialize once, read-only singleton
-pub struct Context {
-    cfg: Cfg,
-    /// Final compilation target
-    target: String,
-}
-
-impl Context {
-    /* Constructors */
-    /// Get a context structure from a built artifact.
-    fn from_artifact(metadata: Metadata, artifact: &Artifact) -> Result<Self> {
-        // Currently there is no clean way to get the target triple from cargo so we can only make
-        // an approximation, we do this by extracting the target triple from the artifacts path.
-        // For more info on the path structure see: https://doc.rust-lang.org/cargo/guide/build-cache.html
-
-        // In the future it may be possible to replace this code and use a cargo feature:
-        // See: https://github.com/rust-lang/cargo/issues/5579, https://github.com/rust-lang/cargo/issues/8002
-
-        // Should always succeed.
-        let target_path = artifact.filenames[0].strip_prefix(metadata.target_directory)?;
-        let target_name = if let Some(Component::Normal(path)) = target_path.components().next() {
-            let path = path.to_string_lossy();
-            // TODO: How will custom profiles impact this?
-            if path == "debug" || path == "release" {
-                // Looks like this artifact was built for the host.
-                rustc_version::version_meta()?.host
-            } else {
-                // The artifact
-                path.to_string()
-            }
-        } else {
-            unreachable!();
-        };
-
-        Self::from_target_name(&target_name)
-    }
-
-    /// Get a context structure from a provided target flag, used when cargo
-    /// was not used to build the binary.
-    fn from_flag(metadata: Metadata, target_flag: Option<&str>) -> Result<Self> {
-        let host_target_name = rustc_version::version_meta()?.host;
-
-        // Get the "default" target override in .cargo/config.
-        let mut config_target_name = None;
-        let config: toml::Value;
-
-        if let Some(path) = search(&metadata.workspace_root, ".cargo/config") {
-            config = parse(&path.join(".cargo/config"))?;
-            config_target_name = config
-                .get("build")
-                .and_then(|build| build.get("target"))
-                .and_then(|target| target.as_str());
-        }
-
-        // Find the actual target.
-        let target_name = target_flag
-            .or(config_target_name)
-            .unwrap_or(&host_target_name);
-
-        Self::from_target_name(target_name)
-    }
-
-    fn from_target_name(target_name: &str) -> Result<Self> {
-        let cfg = Cfg::of(target_name).map_err(|e| e.compat())?;
-
-        Ok(Context {
-            cfg,
-            target: target_name.to_string(),
-        })
-    }
-}
-
 enum BuildType<'a> {
     Any,
     Bin(&'a str),
     Example(&'a str),
     Test(&'a str),
     Bench(&'a str),
+    CustomBuild, // Note: Only currently used for filtering when BuildType::Any is used
     Lib,
 }
 
 impl<'a> BuildType<'a> {
     fn matches(&self, artifact: &Artifact) -> bool {
+        let name = &artifact.target.name;
+        // For info about 'kind' values see:
+        // https://github.com/rust-lang/cargo/blob/95b22d2874ea82a91e55db6286e87aaf40f8d4d5/src/cargo/core/manifest.rs#L111-L126
+        let kind = &artifact.target.kind;
         match self {
-            BuildType::Bin(target_name)
-            | BuildType::Example(target_name)
-            | BuildType::Test(target_name)
-            | BuildType::Bench(target_name) => {
-                artifact.target.name == *target_name && artifact.executable.is_some()
-            }
-            // For info about 'kind' values see:
-            // https://github.com/rust-lang/cargo/blob/d47a9545db81fe6d7e6c542bc8154f09d0e6c788/src/cargo/core/manifest.rs#L166-L181
-            // The only "Any" artifacts we can support are bins and examples, so let's make sure
-            // no-one slips us a "custom-build" in form of a build.rs in
-            BuildType::Any => artifact
-                .target
-                .kind
-                .iter()
-                .any(|s| s == "bin" || s == "example"),
+            // Note: BuildType::Any matches all artifacts but is then later filtered to find the most appropriate artifact
+            BuildType::Any => true,
+            BuildType::Bin(target_name) => kind[0] == "bin" && name == *target_name,
+            BuildType::Example(target_name) => kind[0] == "example" && name == *target_name,
+            BuildType::Test(target_name) => kind[0] == "test" && name == *target_name,
+            BuildType::Bench(target_name) => kind[0] == "bench" && name == *target_name,
+            BuildType::CustomBuild => kind[0] == "custom-build",
             // Since LibKind can be an arbitrary string `LibKind:Other(String)` we filter by what it can't be
-            BuildType::Lib => artifact.target.kind.iter().any(|s| {
+            BuildType::Lib => kind.iter().any(|s| {
                 s != "bin" && s != "example" && s != "test" && s != "custom-build" && s != "bench"
             }),
         }
@@ -281,96 +187,16 @@ To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
 }
 
 pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
-    let mut metadata_command = MetadataCommand::new();
-    if let Some(features) = matches.values_of("features") {
-        metadata_command.features(CargoOpt::SomeFeatures(
-            features.map(|s| s.to_owned()).collect(),
-        ));
-    }
-    if matches.is_present("no-default-features") {
-        metadata_command.features(CargoOpt::NoDefaultFeatures);
-    }
-    if matches.is_present("all-features") {
-        metadata_command.features(CargoOpt::AllFeatures);
-    }
-    let metadata = metadata_command.exec()?;
-    if metadata.workspace_members.is_empty() {
-        bail!("Unable to find workspace members");
-    }
-
-    let target_artifact = if tool.needs_build() {
-        cargo_build(&matches, &metadata)?
-    } else {
-        None
-    };
-
-    let mut tool_args = vec![];
-    if let Some(args) = matches.values_of("args") {
-        tool_args.extend(args);
-    }
-
     let mut lltool = Command::new(format!("rust-{}", tool.name()));
 
-    if tool == Tool::Objdump {
-        let ctxt = if let Some(artifact) = &target_artifact {
-            Context::from_artifact(metadata, artifact)?
-        } else {
-            Context::from_flag(metadata, matches.value_of("target"))?
-        };
-
-        let arch_name = llvm::arch_name(&ctxt.cfg, &ctxt.target);
-
-        if arch_name == "thumb" {
-            // `-arch-name=thumb` doesn't produce the right output so instead we pass
-            // `-triple=$target`, which contains more information about the target
-            lltool.args(&["-triple", &ctxt.target]);
-        } else {
-            lltool.args(&["-arch-name", arch_name]);
-        }
-    }
-
-    // Extra flags
-    if let Tool::Readobj = tool {
-        // The default output style of `readobj` is JSON-like, which is not user friendly, so we
-        // change it to the human readable GNU style
-        lltool.arg("-elf-output-style=GNU");
-    }
-
     if tool.needs_build() {
-        // Artifact
-        if let Some(artifact) = &target_artifact {
-            let file = match &artifact.executable {
-                // Example and bins have an executable
-                Some(val) => val,
-                // Libs have an rlib and an rmeta. We want the rlib, which always
-                // comes first in the filenames array after some quick testing.
-                //
-                // We could instead look for files ending in .rlib, but that would
-                // fail for cdylib and other fancy crate kinds.
-                None => &artifact.filenames[0],
-            };
-
-            match tool {
-                // Tools that don't need a build
-                Tool::Ar | Tool::Lld | Tool::Profdata => {}
-                // for some tools we change the CWD (current working directory) and
-                // make the artifact path relative. This makes the path that the
-                // tool will print easier to read. e.g. `libfoo.rlib` instead of
-                // `/home/user/rust/project/target/$T/debug/libfoo.rlib`.
-                Tool::Objdump | Tool::Nm | Tool::Readobj | Tool::Size => {
-                    lltool
-                        .current_dir(file.parent().unwrap())
-                        .arg(file.file_name().unwrap());
-                }
-                Tool::Objcopy | Tool::Strip => {
-                    lltool.arg(file);
-                }
-            }
-        }
+        cargo_build(tool, &matches, &mut lltool)?
     }
 
     // User flags
-    lltool.args(&tool_args);
+    if let Some(args) = matches.values_of("args") {
+        lltool.args(args);
+    }
 
     if matches.is_present("verbose") {
         eprintln!("{:?}", lltool);
@@ -397,47 +223,56 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     }
 }
 
-fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artifact>> {
+fn cargo_build(tool: Tool, matches: &ArgMatches, lltool: &mut Command) -> Result<()> {
+    let mut metadata_command = MetadataCommand::new();
+    if let Some(features) = matches.values_of("features") {
+        metadata_command.features(CargoOpt::SomeFeatures(
+            features.map(|s| s.to_owned()).collect(),
+        ));
+    }
+    if matches.is_present("no-default-features") {
+        metadata_command.features(CargoOpt::NoDefaultFeatures);
+    }
+    if matches.is_present("all-features") {
+        metadata_command.features(CargoOpt::AllFeatures);
+    }
+    let metadata = metadata_command.exec()?;
+    if metadata.workspace_members.is_empty() {
+        bail!("Unable to find workspace members");
+    }
+
     let cargo = env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     let mut cargo = Command::new(cargo);
     cargo.arg("build");
 
-    let (build_type, verbose) = cargo_build_args(matches, &mut cargo);
+    let build_type = cargo_build_args(matches, &mut cargo);
 
     cargo.arg("--message-format=json");
     cargo.stdout(Stdio::piped());
 
-    if verbose > 0 {
+    if matches.is_present("verbose") {
         eprintln!("{:?}", cargo);
     }
 
     let mut child = cargo.spawn()?;
     let stdout = BufReader::new(child.stdout.take().expect("Pipe to cargo process failed"));
 
-    // Note: We call `collect` to ensure we don't block stdout which could prevent the process from exiting
-    let messages = Message::parse_stream(stdout).collect::<Vec<_>>();
-
-    let status = child.wait()?;
-    if !status.success() {
-        bail!("Failed to parse crate metadata");
-    }
-
-    let mut target_artifact: Option<Artifact> = None;
-    for message in messages {
+    // Note: To ensure we don't corrupt the output messages from the compiler we wait until it has
+    //   completed before doing processing that could terminate the process.
+    let mut artifacts: Vec<Artifact> = vec![];
+    for message in Message::parse_stream(stdout) {
         match message? {
             Message::CompilerArtifact(artifact) => {
                 if metadata.workspace_members.contains(&artifact.package_id)
                     && build_type.matches(&artifact)
                 {
-                    if target_artifact.is_some() {
-                        bail!("Can only have one matching artifact but found several");
-                    }
-
-                    target_artifact = Some(artifact);
+                    artifacts.push(artifact);
                 }
             }
             Message::CompilerMessage(msg) => {
                 if let Some(rendered) = msg.message.rendered {
+                    // Note: We want to send these as soon as possible since larger projects
+                    //   can take some time to build so don't buffer them
                     print!("{}", rendered);
                 }
             }
@@ -445,14 +280,140 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
         }
     }
 
-    if target_artifact.is_none() {
-        bail!("Could not determine the wanted artifact");
+    let status = child.wait()?;
+    if !status.success() {
+        if matches.is_present("verbose") {
+            bail!("Failed to run `{:?}`: {:?}", cargo, status);
+        }
+        match status.code() {
+            Some(code) => bail!(
+                "Failed to run `cargo build`: {}\n\
+                Use `cargo {} -v ...` to display the full `cargo build` command",
+                tool.name(),
+                code
+            ),
+            None => bail!(
+                "Failed to run `cargo build`: terminated by signal\n\
+                Use `cargo {} -v ...` to display the full `cargo build` command",
+                tool.name()
+            ),
+        }
     }
 
-    Ok(target_artifact)
+    if artifacts.is_empty() {
+        if matches.is_present("verbose") {
+            bail!("`{:?}` didn't compile any artifacts", cargo);
+        }
+        bail!(
+            "`cargo build` didn't compile any artifacts\n\
+            Use `cargo {} -v ...` to display the full `cargo build` command",
+            tool.name()
+        );
+    }
+
+    // If no build type was not explicitly set and we have more than 1 artifact then we filter out what we don't want to match
+    if let BuildType::Any = build_type {
+        if artifacts.len() > 1 {
+            artifacts = artifacts
+                .into_iter()
+                .filter(|a| !BuildType::CustomBuild.matches(a))
+                .collect();
+        }
+    }
+
+    if artifacts.is_empty() {
+        bail!("No matching artifacts"); // TODO: Include a helpful method with what was found, and what to run if the user wants to target that binary
+    }
+
+    // Note: Only allow a single artifact for now but we can handle this per tool easily later
+    if artifacts.len() > 1 {
+        bail!("Can only have one matching artifact but found several");
+        // TODO: Include a helpful method with what was found, and what to run if the user wants to target that binary
+    }
+
+    let artifact = &artifacts[0];
+
+    // Extra flags
+    match tool {
+        Tool::Objdump => {
+            // Currently there is no clean way to get the target triple from cargo so we can only make
+            // an approximation, we do this by extracting the target triple from the artifacts path.
+            // For more info on the path structure see: https://doc.rust-lang.org/cargo/guide/build-cache.html
+
+            // In the future it may be possible to replace this code and use a cargo feature:
+            // See: https://github.com/rust-lang/cargo/issues/5579, https://github.com/rust-lang/cargo/issues/8002
+
+            // Should always succeed.
+            let target_path = artifact.filenames[0].strip_prefix(metadata.target_directory)?;
+            let target_name = if let Some(Component::Normal(path)) = target_path.components().next()
+            {
+                let path = path.to_string_lossy();
+                // TODO: How will custom profiles impact this?
+                if path == "debug" || path == "release" {
+                    // Looks like this artifact was built for the host.
+                    rustc_version::version_meta()?.host
+                } else {
+                    // The artifact
+                    path.to_string()
+                }
+            } else {
+                unreachable!();
+            };
+
+            let cfg = Cfg::of(&target_name).map_err(|e| e.compat())?;
+
+            let arch_name = llvm::arch_name(&cfg, &target_name);
+
+            if arch_name == "thumb" {
+                // `-arch-name=thumb` doesn't produce the right output so instead we pass
+                // `-triple=$target`, which contains more information about the target
+                lltool.args(&["-triple", &target_name]);
+            } else {
+                lltool.args(&["-arch-name", arch_name]);
+            }
+        }
+        Tool::Readobj => {
+            // The default output style of `readobj` is JSON-like, which is not user friendly, so we
+            // change it to the human readable GNU style
+            lltool.arg("-elf-output-style=GNU");
+        }
+        _ => {}
+    }
+
+    let file = match &artifact.executable {
+        // Example and bins have an executable
+        Some(val) => val,
+        // Libs have an rlib and an rmeta. We want the rlib, which always
+        // comes first in the filenames array after some quick testing.
+        //
+        // We could instead look for files ending in .rlib, but that would
+        // fail for cdylib and other fancy crate kinds.
+        None => &artifact.filenames[0],
+    };
+
+    match tool {
+        // Tools that don't need a build
+        Tool::Ar | Tool::Lld | Tool::Profdata => {}
+        // for some tools we change the current working directory and
+        // make the artifact path relative. This makes the path that the
+        // tool will print easier to read. e.g. `libfoo.rlib` instead of
+        // `/home/user/rust/project/target/$T/debug/libfoo.rlib`.
+        Tool::Objdump | Tool::Nm | Tool::Readobj | Tool::Size => {
+            let dir = file.parent().unwrap();
+            if matches.is_present("verbose") {
+                eprintln!("Running rust-{} from: {:?}", tool.name(), dir)
+            }
+            lltool.current_dir(dir).arg(file.file_name().unwrap());
+        }
+        Tool::Objcopy | Tool::Strip => {
+            lltool.arg(file);
+        }
+    }
+
+    Ok(())
 }
 
-fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (BuildType<'a>, u64) {
+fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> BuildType<'a> {
     if matches.is_present("quiet") {
         cargo.arg("--quiet");
     }
@@ -541,5 +502,5 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (Bu
         }
     }
 
-    (build_type, verbose)
+    build_type
 }
