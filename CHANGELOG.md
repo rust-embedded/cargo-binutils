@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fixed `cargo build` messages being buffered and causing an output delay for larger projects
+- Fixed implicit artifact matching to allow for library crates to be matched
 
 ### Changed
 
