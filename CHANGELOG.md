@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Allow the combination of `--features` `--no-default-features` and `--all-features` flags
+- Improved error messaging when `llvm-tools-preview` hasn't been installed
 
 ## [v0.3.0] - 2020-05-28
 
