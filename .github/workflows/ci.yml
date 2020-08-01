@@ -1,0 +1,71 @@
+on:
+  push:
+    branches: [ staging, trying, master ]
+  pull_request:
+
+name: Continuous integration
+
+jobs:
+  ci:
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: 
+          # MSRV
+          - 1.38.0
+          - stable
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        experimental: [false]
+        include:
+          - rust: nightly
+            os: ubuntu-latest
+            experimental: true
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: llvm-tools-preview
+
+      - name: Build and install cargo-binutils
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path . -f
+
+      - name: Run cargo-nm
+        uses: actions-rs/cargo@v1
+        with:
+          command: nm
+          args: --bin cargo-nm -- --undefined-only
+
+      - name: Run cargo-objdump
+        uses: actions-rs/cargo@v1
+        with:
+          command: objdump
+          args: --bin cargo-objdump -- -h
+
+      - name: Run cargo-objcopy (on Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions-rs/cargo@v1
+        with:
+          command: objcopy
+          args: --bin cargo-objdump -v -- -O binary objdump.bin
+
+      - name: Run cargo-size
+        uses: actions-rs/cargo@v1
+        with:
+          command: size
+          args: --bin cargo-size -v
+
+      - name: Run cargo-strip (on Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions-rs/cargo@v1
+        with:
+          command: strip
+          args: --bin cargo-strip -v
