@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## [v0.3.1] - 2020-07-30
-
 ### Added
 
-- Added suggestion messages if no target artifact is found
+- Added command suggestion messages if no target artifact is matched
+
+### Fixed
+
+- Fixed `cargo build` messages being buffered and causing an output delay for larger projects
+
+### Changed
+
+- Improved error messaging when `llvm-tools-preview` hasn't been installed
+
+## [v0.3.1] - 2020-07-30
 
 ### Fixed
 
@@ -22,7 +30,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Allow the combination of `--features` `--no-default-features` and `--all-features` flags
-- Improved error messaging when `llvm-tools-preview` hasn't been installed
 
 ## [v0.3.0] - 2020-05-28
 
