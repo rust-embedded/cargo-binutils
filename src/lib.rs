@@ -70,11 +70,11 @@ impl<'a> BuildType<'a> {
     fn generate_command(tool: Tool, artifact: &Artifact) -> String {
         match BuildType::from_artifact(artifact) {
             BuildType::Any => panic!(
-                "Unknown artifact: {}, {:?}",
+                "Unknown target: {}, {:?}",
                 artifact.target.name, artifact.target.kind
             ),
             BuildType::CustomBuild => format!(
-                "Unable to create command for custom-build artifact: {}",
+                "Unable to create command for custom-build target: {}",
                 artifact.target.name
             ),
             BuildType::Bin(target_name) => format!("cargo {} --bin {}", tool.name(), target_name),
@@ -92,11 +92,11 @@ impl<'a> BuildType<'a> {
     fn generate_command_with_package(tool: Tool, artifact: &Artifact) -> String {
         match BuildType::from_artifact(artifact) {
             BuildType::Any => format!(
-                "Unknown artifact: {} {}, {:?}",
+                "Unknown target: {} {}, {:?}",
                 artifact.package_id, artifact.target.name, artifact.target.kind,
             ),
             BuildType::CustomBuild => format!(
-                "Unable to create command for custom-build artifact: {} {}",
+                "Unable to create command for custom-build target: {} {}",
                 artifact.package_id, artifact.target.name,
             ),
             BuildType::Bin(target_name) => format!(
@@ -386,10 +386,10 @@ fn cargo_build(tool: Tool, matches: &ArgMatches, lltool: &mut Command) -> Result
 
     if artifacts.is_empty() {
         if matches.is_present("verbose") {
-            bail!("`{:?}` didn't compile any artifacts", cargo);
+            bail!("`{:?}` didn't compile any targets", cargo);
         }
         bail!(
-            "`cargo build` didn't compile any artifacts\n\
+            "`cargo build` didn't compile any targets\n\
             Use `cargo {} -v ...` to display the full `cargo build` command",
             tool.name()
         );
@@ -408,7 +408,7 @@ fn cargo_build(tool: Tool, matches: &ArgMatches, lltool: &mut Command) -> Result
 
     if filtered_artifacts.is_empty() {
         bail!(
-            "No matching artifacts.\n\
+            "No matching targets.\n\
             Specified build type: {:?}\n\
             Possible targets: \n\
             {}",
@@ -420,7 +420,7 @@ fn cargo_build(tool: Tool, matches: &ArgMatches, lltool: &mut Command) -> Result
     // Note: Only allow a single artifact for now but we can handle this per tool easily later
     if filtered_artifacts.len() > 1 {
         bail!(
-            "Can only have one matching artifact but found several.\n\
+            "Can only have one matching target but found several.\n\
             Specified build type: {:?}\n\
             Possible targets: \n\
             {}",
