@@ -69,7 +69,7 @@ impl<'a> BuildType<'a> {
 
     fn generate_command(tool: Tool, artifact: &Artifact) -> String {
         match BuildType::from_artifact(artifact) {
-            BuildType::Any => panic!(
+            BuildType::Any => format!(
                 "Unknown target: {}, {:?}",
                 artifact.target.name, artifact.target.kind
             ),
@@ -85,7 +85,7 @@ impl<'a> BuildType<'a> {
             BuildType::Bench(target_name) => {
                 format!("cargo {} --bench {}", tool.name(), target_name)
             }
-            BuildType::Lib => format!("cargo {} --bench {}", tool.name(), artifact.target.name),
+            BuildType::Lib => format!("cargo {} --lib {}", tool.name(), artifact.target.name),
         }
     }
 
@@ -124,7 +124,7 @@ impl<'a> BuildType<'a> {
                 target_name,
             ),
             BuildType::Lib => format!(
-                "cargo {} --package {} --bench {}",
+                "cargo {} --package {} --lib {}",
                 tool.name(),
                 artifact.package_id,
                 artifact.target.name,
