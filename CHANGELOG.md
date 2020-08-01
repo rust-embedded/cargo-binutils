@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [v0.3.1] - 2020-07-30
 
+### Added
+
+- Added suggestion messages if no target artifact is found
+
 ### Fixed
 
 - Fixed confusion caused by `build.rs` in the project generating an virtual
