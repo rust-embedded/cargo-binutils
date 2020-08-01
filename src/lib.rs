@@ -1,12 +1,13 @@
 #![deny(warnings)]
 
+use std::collections::HashMap;
 use std::io::{self, BufReader, Write};
 use std::path::Component;
 use std::process::{Command, Stdio};
 use std::{env, str};
 
 use anyhow::{bail, Result};
-use cargo_metadata::{Artifact, CargoOpt, Message, MetadataCommand};
+use cargo_metadata::{Artifact, CargoOpt, Message, MetadataCommand, PackageId};
 use clap::{App, AppSettings, Arg, ArgMatches};
 use rustc_cfg::Cfg;
 
@@ -17,6 +18,7 @@ mod postprocess;
 mod rustc;
 mod tool;
 
+#[derive(Debug)]
 enum BuildType<'a> {
     Any,
     Bin(&'a str),
@@ -45,6 +47,23 @@ impl<'a> BuildType<'a> {
             BuildType::Lib => kind.iter().any(|s| {
                 s != "bin" && s != "example" && s != "test" && s != "custom-build" && s != "bench"
             }),
+        }
+    }
+
+    fn from_artifact(artifact: &'a Artifact) -> BuildType<'a> {
+        let name = &artifact.target.name;
+        match artifact.target.kind[0].as_str() {
+            "bin" => BuildType::Bin(name),
+            "example" => BuildType::Example(name),
+            "test" => BuildType::Test(name),
+            "bench" => BuildType::Bench(name),
+            "custom-build" => BuildType::CustomBuild,
+            _ => {
+                if BuildType::Lib.matches(artifact) {
+                    return BuildType::Lib;
+                }
+                BuildType::Any
+            }
         }
     }
 }
@@ -287,10 +306,10 @@ fn cargo_build(tool: Tool, matches: &ArgMatches, lltool: &mut Command) -> Result
         }
         match status.code() {
             Some(code) => bail!(
-                "Failed to run `cargo build`: {}\n\
+                "Failed to run `cargo build` got exit code: {}\n\
                 Use `cargo {} -v ...` to display the full `cargo build` command",
+                code,
                 tool.name(),
-                code
             ),
             None => bail!(
                 "Failed to run `cargo build`: terminated by signal\n\
@@ -312,26 +331,40 @@ fn cargo_build(tool: Tool, matches: &ArgMatches, lltool: &mut Command) -> Result
     }
 
     // If no build type was not explicitly set and we have more than 1 artifact then we filter out what we don't want to match
+    let mut filtered_artifacts = artifacts.clone();
     if let BuildType::Any = build_type {
-        if artifacts.len() > 1 {
-            artifacts = artifacts
+        if filtered_artifacts.len() > 1 {
+            filtered_artifacts = filtered_artifacts
                 .into_iter()
                 .filter(|a| !BuildType::CustomBuild.matches(a))
                 .collect();
         }
     }
 
-    if artifacts.is_empty() {
-        bail!("No matching artifacts"); // TODO: Include a helpful method with what was found, and what to run if the user wants to target that binary
+    if filtered_artifacts.is_empty() {
+        bail!(
+            "No matching artifacts.\n\
+            Specified build type: {:?}\n\
+            Possible targets: \n\
+            {}",
+            build_type,
+            format_targets(tool, artifacts)
+        );
     }
 
     // Note: Only allow a single artifact for now but we can handle this per tool easily later
-    if artifacts.len() > 1 {
-        bail!("Can only have one matching artifact but found several");
-        // TODO: Include a helpful method with what was found, and what to run if the user wants to target that binary
+    if filtered_artifacts.len() > 1 {
+        bail!(
+            "Can only have one matching artifact but found several.\n\
+            Specified build type: {:?}\n\
+            Possible targets: \n\
+            {}",
+            build_type,
+            format_targets(tool, artifacts)
+        );
     }
 
-    let artifact = &artifacts[0];
+    let artifact = &filtered_artifacts[0];
 
     // Extra flags
     match tool {
@@ -503,4 +536,59 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> Bui
     }
 
     build_type
+}
+
+fn format_targets(tool: Tool, artifacts: Vec<Artifact>) -> String {
+    // Group targets by package id
+    let mut map: HashMap<PackageId, Vec<&Artifact>> = HashMap::default();
+    for artifact in &artifacts {
+        if let Some(vec) = map.get_mut(&artifact.package_id) {
+            vec.push(artifact);
+        } else {
+            map.insert(artifact.package_id.clone(), vec![artifact]);
+        }
+    }
+
+    if map.len() == 1 {
+        return format!(
+            "  {}",
+            artifacts
+                .iter()
+                .map(|a| artifact_to_command(tool, a))
+                .collect::<Vec<_>>()
+                .join("\n  ")
+        );
+    }
+
+    map.iter()
+        .map(|(k, v)| {
+            let str = v
+                .iter()
+                .map(|a| artifact_to_command(tool, a))
+                .collect::<Vec<_>>()
+                .join("\n  ");
+            format!("PackageId: {}\n  {}", k, str)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn artifact_to_command(tool: Tool, artifact: &Artifact) -> String {
+    match BuildType::from_artifact(artifact) {
+        BuildType::Any => panic!(
+            "Unknown artifact: {}, {:?}",
+            artifact.target.name, artifact.target.kind
+        ),
+        BuildType::CustomBuild => format!(
+            "Unable to create command for custom-build artifact: {}",
+            artifact.target.name
+        ),
+        BuildType::Bin(target_name) => format!("cargo {} --bin {}", tool.name(), target_name),
+        BuildType::Example(target_name) => {
+            format!("cargo {} --example {}", tool.name(), target_name)
+        }
+        BuildType::Test(target_name) => format!("cargo {} --test {}", tool.name(), target_name),
+        BuildType::Bench(target_name) => format!("cargo {} --bench {}", tool.name(), target_name),
+        BuildType::Lib => format!("cargo {} --bench {}", tool.name(), artifact.target.name),
+    }
 }
