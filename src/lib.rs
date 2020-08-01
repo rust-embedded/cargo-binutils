@@ -66,6 +66,71 @@ impl<'a> BuildType<'a> {
             }
         }
     }
+
+    fn generate_command(tool: Tool, artifact: &Artifact) -> String {
+        match BuildType::from_artifact(artifact) {
+            BuildType::Any => panic!(
+                "Unknown artifact: {}, {:?}",
+                artifact.target.name, artifact.target.kind
+            ),
+            BuildType::CustomBuild => format!(
+                "Unable to create command for custom-build artifact: {}",
+                artifact.target.name
+            ),
+            BuildType::Bin(target_name) => format!("cargo {} --bin {}", tool.name(), target_name),
+            BuildType::Example(target_name) => {
+                format!("cargo {} --example {}", tool.name(), target_name)
+            }
+            BuildType::Test(target_name) => format!("cargo {} --test {}", tool.name(), target_name),
+            BuildType::Bench(target_name) => {
+                format!("cargo {} --bench {}", tool.name(), target_name)
+            }
+            BuildType::Lib => format!("cargo {} --bench {}", tool.name(), artifact.target.name),
+        }
+    }
+
+    fn generate_command_with_package(tool: Tool, artifact: &Artifact) -> String {
+        match BuildType::from_artifact(artifact) {
+            BuildType::Any => format!(
+                "Unknown artifact: {} {}, {:?}",
+                artifact.package_id, artifact.target.name, artifact.target.kind,
+            ),
+            BuildType::CustomBuild => format!(
+                "Unable to create command for custom-build artifact: {} {}",
+                artifact.package_id, artifact.target.name,
+            ),
+            BuildType::Bin(target_name) => format!(
+                "cargo {} --package {} --bin {}",
+                tool.name(),
+                artifact.package_id,
+                target_name,
+            ),
+            BuildType::Example(target_name) => format!(
+                "cargo {} --package {} --example {}",
+                tool.name(),
+                artifact.package_id,
+                target_name,
+            ),
+            BuildType::Test(target_name) => format!(
+                "cargo {} --package {} --test {}",
+                tool.name(),
+                artifact.package_id,
+                target_name,
+            ),
+            BuildType::Bench(target_name) => format!(
+                "cargo {} --package {} --bench {}",
+                tool.name(),
+                artifact.package_id,
+                target_name,
+            ),
+            BuildType::Lib => format!(
+                "cargo {} --package {} --bench {}",
+                tool.name(),
+                artifact.package_id,
+                artifact.target.name,
+            ),
+        }
+    }
 }
 
 fn args(tool: Tool, examples: Option<&str>) -> ArgMatches {
@@ -549,12 +614,13 @@ fn format_targets(tool: Tool, artifacts: Vec<Artifact>) -> String {
         }
     }
 
+    // If only one package exists then we don't need to
     if map.len() == 1 {
         return format!(
             "  {}",
             artifacts
                 .iter()
-                .map(|a| artifact_to_command(tool, a))
+                .map(|a| BuildType::generate_command(tool, a))
                 .collect::<Vec<_>>()
                 .join("\n  ")
         );
@@ -564,31 +630,11 @@ fn format_targets(tool: Tool, artifacts: Vec<Artifact>) -> String {
         .map(|(k, v)| {
             let str = v
                 .iter()
-                .map(|a| artifact_to_command(tool, a))
+                .map(|a| BuildType::generate_command_with_package(tool, a))
                 .collect::<Vec<_>>()
                 .join("\n  ");
-            format!("PackageId: {}\n  {}", k, str)
+            format!("Package: {}\n  {}", k, str)
         })
         .collect::<Vec<_>>()
         .join("\n")
-}
-
-fn artifact_to_command(tool: Tool, artifact: &Artifact) -> String {
-    match BuildType::from_artifact(artifact) {
-        BuildType::Any => panic!(
-            "Unknown artifact: {}, {:?}",
-            artifact.target.name, artifact.target.kind
-        ),
-        BuildType::CustomBuild => format!(
-            "Unable to create command for custom-build artifact: {}",
-            artifact.target.name
-        ),
-        BuildType::Bin(target_name) => format!("cargo {} --bin {}", tool.name(), target_name),
-        BuildType::Example(target_name) => {
-            format!("cargo {} --example {}", tool.name(), target_name)
-        }
-        BuildType::Test(target_name) => format!("cargo {} --test {}", tool.name(), target_name),
-        BuildType::Bench(target_name) => format!("cargo {} --bench {}", tool.name(), target_name),
-        BuildType::Lib => format!("cargo {} --bench {}", tool.name(), artifact.target.name),
-    }
 }
