@@ -403,6 +403,7 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
     cargo.arg("build");
 
     let (build_type, verbose) = cargo_build_args(matches, &mut cargo);
+    let quiet = matches.is_present("quiet");
 
     cargo.arg("--message-format=json");
     cargo.stdout(Stdio::piped());
@@ -437,8 +438,10 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
                 }
             }
             Message::CompilerMessage(msg) => {
-                if let Some(rendered) = msg.message.rendered {
-                    print!("{}", rendered);
+                if !quiet || verbose > 1 {
+                    if let Some(rendered) = msg.message.rendered {
+                        print!("{}", rendered);
+                    }
                 }
             }
             _ => (),
