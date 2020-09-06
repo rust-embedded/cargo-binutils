@@ -323,9 +323,9 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
         if arch_name == "thumb" {
             // `-arch-name=thumb` doesn't produce the right output so instead we pass
             // `-triple=$target`, which contains more information about the target
-            lltool.args(&["-triple", &ctxt.target]);
+            lltool.args(&["--triple", &ctxt.target]);
         } else {
-            lltool.args(&["-arch-name", arch_name]);
+            lltool.args(&["--arch-name", arch_name]);
         }
     }
 
@@ -333,7 +333,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     if let Tool::Readobj = tool {
         // The default output style of `readobj` is JSON-like, which is not user friendly, so we
         // change it to the human readable GNU style
-        lltool.arg("-elf-output-style=GNU");
+        lltool.arg("--elf-output-style=GNU");
     }
 
     if tool.needs_build() {
