@@ -10,6 +10,7 @@ use crate::rustc::rustlib;
 #[derive(Clone, Copy, PartialEq)]
 pub enum Tool {
     Ar,
+    Cov,
     Lld,
     Nm,
     Objcopy,
@@ -24,6 +25,7 @@ impl Tool {
     pub fn name(self) -> &'static str {
         match self {
             Tool::Ar => "ar",
+            Tool::Cov => "cov",
             Tool::Lld => "lld",
             Tool::Nm => "nm",
             Tool::Objcopy => "objcopy",
@@ -95,7 +97,7 @@ impl Tool {
     // Whether this tool requires the project to be previously built
     pub fn needs_build(self) -> bool {
         match self {
-            Tool::Ar | Tool::Lld | Tool::Profdata => false,
+            Tool::Ar | Tool::Cov | Tool::Lld | Tool::Profdata => false,
             Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Readobj | Tool::Size | Tool::Strip => {
                 true
             }
