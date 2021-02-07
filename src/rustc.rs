@@ -1,8 +1,47 @@
 use std::env;
+use std::error::Error;
+use std::fmt::{self, Debug, Display, Formatter};
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 
 use anyhow::Result;
+use rustc_version::VersionMeta;
+
+struct ArcError<T>(Arc<T>);
+
+impl<T: Debug> Debug for ArcError<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Debug::fmt(&self.0, f)
+    }
+}
+
+impl<T: Display> Display for ArcError<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl<T: Error> Error for ArcError<T> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.0.source()
+    }
+}
+
+impl<T> Clone for ArcError<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+lazy_static::lazy_static! {
+    static ref VERSION_META: Result<VersionMeta, ArcError<rustc_version::Error>> =
+        rustc_version::version_meta().map_err(|error| ArcError(Arc::new(error)));
+}
+
+pub fn version_meta() -> Result<&'static VersionMeta> {
+    VERSION_META.as_ref().map_err(|error| error.clone().into())
+}
 
 pub fn sysroot() -> Result<String> {
     let rustc = env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
@@ -17,7 +56,7 @@ pub fn rustlib() -> Result<PathBuf> {
     let mut pathbuf = PathBuf::from(sysroot);
     pathbuf.push("lib");
     pathbuf.push("rustlib");
-    pathbuf.push(rustc_version::version_meta()?.host); // TODO: Prevent calling rustc_version::version_meta() multiple times
+    pathbuf.push(&version_meta()?.host);
     pathbuf.push("bin");
     Ok(pathbuf)
 }

@@ -1,5 +1,6 @@
 #![deny(warnings)]
 
+use std::borrow::Cow;
 use std::io::{self, BufReader, Write};
 use std::path::{Component, Path};
 use std::process::{Command, Stdio};
@@ -61,10 +62,10 @@ impl Context {
             // TODO: How will custom profiles impact this?
             if path == "debug" || path == "release" {
                 // Looks like this artifact was built for the host.
-                rustc_version::version_meta()?.host
+                Cow::Borrowed(rustc::version_meta()?.host.as_str())
             } else {
                 // The artifact
-                path.to_string()
+                Cow::Owned(path.to_string())
             }
         } else {
             unreachable!();
@@ -76,7 +77,7 @@ impl Context {
     /// Get a context structure from a provided target flag, used when cargo
     /// was not used to build the binary.
     fn from_flag(metadata: Metadata, target_flag: Option<&str>) -> Result<Self> {
-        let host_target_name = rustc_version::version_meta()?.host;
+        let host_target_name = rustc::version_meta()?.host.as_str();
 
         // Get the "default" target override in .cargo/config.
         let mut config_target_name = None;
@@ -93,7 +94,7 @@ impl Context {
         // Find the actual target.
         let target_name = target_flag
             .or(config_target_name)
-            .unwrap_or(&host_target_name);
+            .unwrap_or(host_target_name);
 
         Self::from_target_name(target_name)
     }
