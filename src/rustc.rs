@@ -3,44 +3,44 @@ use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::Arc;
 
 use anyhow::Result;
 use rustc_version::VersionMeta;
 
-struct ArcError<T>(Arc<T>);
+struct RefError<'a, T>(&'a T);
 
-impl<T: Debug> Debug for ArcError<T> {
+impl<'a, T: Debug> Debug for RefError<'a, T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Debug::fmt(&self.0, f)
+        Debug::fmt(self.0, f)
     }
 }
 
-impl<T: Display> Display for ArcError<T> {
+impl<'a, T: Display> Display for RefError<'a, T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(&self.0, f)
+        Display::fmt(self.0, f)
     }
 }
 
-impl<T: Error> Error for ArcError<T> {
+impl<'a, T: Error> Error for RefError<'a, T> {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         self.0.source()
     }
 }
 
-impl<T> Clone for ArcError<T> {
+impl<'a, T> Clone for RefError<'a, T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self(self.0)
     }
 }
 
 lazy_static::lazy_static! {
-    static ref VERSION_META: Result<VersionMeta, ArcError<rustc_version::Error>> =
-        rustc_version::version_meta().map_err(|error| ArcError(Arc::new(error)));
+    static ref VERSION_META: Result<VersionMeta, rustc_version::Error> = rustc_version::version_meta();
 }
 
 pub fn version_meta() -> Result<&'static VersionMeta> {
-    VERSION_META.as_ref().map_err(|error| error.clone().into())
+    VERSION_META
+        .as_ref()
+        .map_err(|error| RefError(error).into())
 }
 
 pub fn sysroot() -> Result<String> {
