@@ -65,7 +65,7 @@ impl Context {
                 Cow::Borrowed(rustc::version_meta()?.host.as_str())
             } else {
                 // The artifact
-                Cow::Owned(path.to_string())
+                path
             }
         } else {
             unreachable!();
