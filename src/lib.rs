@@ -1,6 +1,5 @@
 #![deny(warnings)]
 
-use std::borrow::Cow;
 use std::io::{self, BufReader, Write};
 use std::path::{Component, Path};
 use std::process::{Command, Stdio};
@@ -62,7 +61,7 @@ impl Context {
             // TODO: How will custom profiles impact this?
             if path == "debug" || path == "release" {
                 // Looks like this artifact was built for the host.
-                Cow::Borrowed(rustc::version_meta()?.host.as_str())
+                rustc::version_meta()?.host.as_str().into()
             } else {
                 // The artifact
                 path
