@@ -27,12 +27,6 @@ impl<'a, T: Error> Error for RefError<'a, T> {
     }
 }
 
-impl<'a, T> Clone for RefError<'a, T> {
-    fn clone(&self) -> Self {
-        Self(self.0)
-    }
-}
-
 lazy_static::lazy_static! {
     static ref VERSION_META: Result<VersionMeta, rustc_version::Error> = rustc_version::version_meta();
 }
