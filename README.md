@@ -130,7 +130,7 @@ $ stat --printf="%s\n" app.bin
 Disassemble a binary.
 
 ``` console
-$ cargo objdump --release -- -disassemble -no-show-raw-insn
+$ cargo objdump --release -- --disassemble --no-show-raw-insn
 target/thumbv7m-none-eabi/debug/app:    file format ELF32-arm-little
 
 Disassembly of section .text:
