@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.4] - 2021-11-16
+
+### Fixed
+
+- Fix arch-name argument which now uses an equals sign (#108)
+
+### Changed
+
+- MSRV bumped to 1.46
+
 ## [v0.3.3] - 2020-11-17
 
 ### Added
@@ -159,7 +169,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.4...HEAD
+[v0.3.4]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.0...v0.3.1
