@@ -2,9 +2,9 @@ block_labels = ["needs-decision"]
 delete_merged_branches = true
 required_approvals = 1
 status = [
-        "ci (1.42.0, ubuntu-latest, false)",
-        "ci (1.42.0, macos-latest, false)",
-        "ci (1.42.0, windows-latest, false)",
+        "ci (1.46.0, ubuntu-latest, false)",
+        "ci (1.46.0, macos-latest, false)",
+        "ci (1.46.0, windows-latest, false)",
         "ci (stable, ubuntu-latest, false)",
         "ci (stable, macos-latest, false)",
         "ci (stable, windows-latest, false)",

@@ -325,7 +325,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
             // `-triple=$target`, which contains more information about the target
             lltool.args(&["--triple", &ctxt.target]);
         } else {
-            lltool.args(&["--arch-name", arch_name]);
+            lltool.args(&[format!("--arch-name={}", arch_name)]);
         }
     }
 
