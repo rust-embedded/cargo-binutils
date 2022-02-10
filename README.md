@@ -104,7 +104,7 @@ $ cargo nm --release
 List all symbols in an executable sorted by size (smallest first).
 
 ``` console
-$ cargo nm --release -- -print-size -size-sort
+$ cargo nm --release -- --print-size --size-sort
 0800040a 00000002 T DefaultHandler
 08000408 00000002 T UserHardFault
 08000004 00000004 R __RESET_VECTOR
