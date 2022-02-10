@@ -190,7 +190,7 @@ Strip all symbols from the build artifact
 $ stat --printf="%s\n" target/release/hello
 4094240
 
-$ cargo-strip --release -- -strip-all -O smaller-hello
+$ cargo-strip --release -- --strip-all -o smaller-hello
 
 $ stat --printf="%s\n" smaller-hello
 424432
