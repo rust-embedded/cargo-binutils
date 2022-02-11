@@ -62,6 +62,11 @@ impl Tool {
             Ok(p) => p,
         };
 
+        if !path.exists() {
+            eprintln!("Could not find tool: {}\nat: {}\nConsider `rustup component add llvm-tools-preview`", self.name(), path.to_string_lossy());
+            process::exit(102)
+        };
+
         // Note: The first argument is the name of the binary (e.g. `rust-nm`)
         let args = env::args().skip(1);
 
