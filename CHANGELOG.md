@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Action to build binaries and release for every version tag and latest commit
+
 ## [v0.3.5] - 2022-02-12
 
 ### Added
