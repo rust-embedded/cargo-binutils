@@ -1,11 +1,12 @@
 #![deny(warnings)]
 
 use std::io::{self, BufReader, Write};
-use std::path::{Component, Path};
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::{env, str};
 
 use anyhow::{bail, Result};
+use cargo_metadata::camino::Utf8Component;
 use cargo_metadata::{Artifact, CargoOpt, Message, Metadata, MetadataCommand};
 use clap::{App, AppSettings, Arg, ArgMatches};
 use rustc_cfg::Cfg;
@@ -56,8 +57,8 @@ impl Context {
 
         // Should always succeed.
         let target_path = artifact.filenames[0].strip_prefix(metadata.target_directory)?;
-        let target_name = if let Some(Component::Normal(path)) = target_path.components().next() {
-            let path = path.to_string_lossy();
+        let target_name = if let Some(Utf8Component::Normal(path)) = target_path.components().next()
+        {
             // TODO: How will custom profiles impact this?
             if path == "debug" || path == "release" {
                 // Looks like this artifact was built for the host.
@@ -82,7 +83,7 @@ impl Context {
         let mut config_target_name = None;
         let config: toml::Value;
 
-        if let Some(path) = search(&metadata.workspace_root, ".cargo/config") {
+        if let Some(path) = search(metadata.workspace_root.as_std_path(), ".cargo/config") {
             config = parse(&path.join(".cargo/config"))?;
             config_target_name = config
                 .get("build")
