@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.6] - 2022-06-19
+
 ### Added
 
 - Action to build binaries and release for every version tag and latest commit
+
+### Changed
+
+- Bump `cargo_metadata` to 0.14 and `rustc_version` to 0.4
 
 ## [v0.3.5] - 2022-02-12
 
@@ -183,7 +189,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.6...HEAD
+[v0.3.6]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.2...v0.3.3
