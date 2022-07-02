@@ -154,7 +154,7 @@ fn args(tool: Tool, examples: Option<&str>) -> ArgMatches {
         "\
 The arguments specified *after* the `--` will be passed to the proxied tool invocation.
 
-To see all the flags the proxied tool accepts run `cargo-{} -- -help`.{}",
+To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
         name,
         examples.unwrap_or("")
     );
