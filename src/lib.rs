@@ -100,7 +100,7 @@ impl Context {
     }
 
     fn from_target_name(target_name: &str) -> Result<Self> {
-        let cfg = Cfg::of(target_name).map_err(|e| e.compat())?;
+        let cfg = Cfg::of(target_name)?;
 
         Ok(Context {
             cfg,
@@ -541,7 +541,7 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (Bu
         cargo.arg("--offline");
     }
 
-    if let Some(unstable_features) = matches.values_of("Z") {
+    if let Some(unstable_features) = matches.values_of("unstable-features") {
         for unstable_feature in unstable_features {
             cargo.args(&["-Z", unstable_feature]);
         }
