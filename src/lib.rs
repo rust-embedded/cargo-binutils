@@ -400,6 +400,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     }
 }
 
+#[cfg(target_family = "unix")]
 fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artifact>> {
     let cargo = env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     let mut cargo = Command::new(cargo);
