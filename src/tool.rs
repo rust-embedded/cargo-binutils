@@ -7,7 +7,7 @@ use anyhow::Result;
 
 use crate::rustc::rustlib;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
     Ar,
     Cov,
