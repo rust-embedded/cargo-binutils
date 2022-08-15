@@ -12,9 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: 
+        rust:
           # MSRV
-          - 1.46.0
+          - 1.51.0
           - stable
         os: [ubuntu-latest, macos-latest, windows-latest]
         experimental: [false]
@@ -69,3 +69,14 @@ jobs:
         with:
           command: strip
           args: --bin cargo-strip -v
+  conclusion:
+    runs-on: ubuntu-latest
+    needs: ci
+    if: always()
+    steps:
+      - name: Result
+        run: |
+          jq -C <<< "${needs}"
+          "$(jq -r 'all(.result as $result | (["success"] | contains([$result])))' <<< "${needs}")"
+        env:
+          needs: ${{ toJson(needs) }}

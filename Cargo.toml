@@ -16,8 +16,8 @@ version = "0.3.6"
 
 [dependencies]
 cargo_metadata = "0.14"
-clap = "2.33"
-regex = "1.5.5"
+clap = "2.34"
+regex = "1.5.6"
 rustc-cfg = "0.4"
 rustc-demangle = "0.1"
 rustc_version = "0.4"

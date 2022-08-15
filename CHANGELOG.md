@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- MSRV Changed to 1.51
+- Bump `clap` to 2.34 and `regex` to 1.5.6
+
+### Fixed
+
+- Fixed incorrect parsing of `-Z` flags causing them to not be considered (#128)
+
 ## [v0.3.6] - 2022-06-20
 
 ### Added
