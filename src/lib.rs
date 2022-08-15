@@ -324,7 +324,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
         if arch_name == "thumb" {
             // `-arch-name=thumb` doesn't produce the right output so instead we pass
             // `-triple=$target`, which contains more information about the target
-            lltool.args(&["--triple", &ctxt.target]);
+            lltool.args(["--triple", &ctxt.target]);
         } else {
             lltool.args(&[format!("--arch-name={}", arch_name)]);
         }
@@ -391,7 +391,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
         Tool::Size => postprocess::size(&output.stdout),
     };
 
-    stdout.write_all(&*processed_output)?;
+    stdout.write_all(&processed_output)?;
 
     if output.status.success() {
         Ok(0)
@@ -474,19 +474,19 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (Bu
     }
 
     let build_type = if matches.is_present("lib") {
-        cargo.args(&["--lib"]);
+        cargo.args(["--lib"]);
         BuildType::Lib
     } else if let Some(bin_name) = matches.value_of("bin") {
-        cargo.args(&["--bin", bin_name]);
+        cargo.args(["--bin", bin_name]);
         BuildType::Bin(bin_name)
     } else if let Some(example_name) = matches.value_of("example") {
-        cargo.args(&["--example", example_name]);
+        cargo.args(["--example", example_name]);
         BuildType::Example(example_name)
     } else if let Some(test_name) = matches.value_of("test") {
-        cargo.args(&["--test", test_name]);
+        cargo.args(["--test", test_name]);
         BuildType::Test(test_name)
     } else if let Some(bench_name) = matches.value_of("bench") {
-        cargo.args(&["--bench", bench_name]);
+        cargo.args(["--bench", bench_name]);
         BuildType::Bench(bench_name)
     } else {
         BuildType::Any
@@ -503,7 +503,7 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (Bu
 
     if let Some(features) = matches.values_of("features") {
         for feature in features {
-            cargo.args(&["--features", feature]);
+            cargo.args(["--features", feature]);
         }
     }
     if matches.is_present("no-default-features") {
@@ -516,7 +516,7 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (Bu
     // NOTE we do *not* use `project.target()` here because Cargo will figure things out on
     // its own (i.e. it will search and parse .cargo/config, etc.)
     if let Some(target) = matches.value_of("target") {
-        cargo.args(&["--target", target]);
+        cargo.args(["--target", target]);
     }
 
     let verbose = matches.occurrences_of("verbose");
@@ -543,7 +543,7 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (Bu
 
     if let Some(unstable_features) = matches.values_of("unstable-features") {
         for unstable_feature in unstable_features {
-            cargo.args(&["-Z", unstable_feature]);
+            cargo.args(["-Z", unstable_feature]);
         }
     }
 
