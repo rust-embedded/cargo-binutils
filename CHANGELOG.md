@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- MSRV Changed to 1.51
+- MSRV Changed to 1.60
 - Bump `rust-cfg` to 0.5 and `cargo_metadata` to 0.15
 
 ### Fixed
