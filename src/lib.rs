@@ -244,10 +244,10 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .help("Space-separated list of features to activate"),
             Arg::with_name("all-features")
                 .long("all-features")
-                .help("Do not activate the `default` feature"),
+                .help("Activate all available features"),
             Arg::with_name("no-default-features")
                 .long("no-default-features")
-                .help("Activate all available features"),
+                .help("Do not activate the `default` feature"),
             Arg::with_name("target")
                 .long("target")
                 .takes_value(true)
