@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- MSRV Changed to 1.60
+- Bump `rust-cfg` to 0.5 and `cargo_metadata` to 0.15
+
+### Fixed
+
+- Fixed incorrect parsing of `-Z` flags causing them to not be considered (#128)
+
 ## [v0.3.6] - 2022-06-20
 
 ### Added
