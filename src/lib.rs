@@ -374,6 +374,9 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     lltool.args(&tool_args);
 
     if matches.is_present("verbose") {
+        if let Some(cwd) = lltool.get_current_dir() {
+            eprint!("{:?} ", cwd.display());
+        }
         eprintln!("{:?}", lltool);
     }
 
