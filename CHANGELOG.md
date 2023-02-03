@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- MSRV Changed to 1.60
-- Bump `rust-cfg` to 0.5 and `cargo_metadata` to 0.15
+- MSRV Changed to 1.72.1
+- Bump `rust-cfg` to 0.5, `cargo_metadata` to 0.15, `clap` to 4.1.4 and `toml` to 0.7.1
 
 ### Fixed
 

@@ -14,7 +14,7 @@ jobs:
       matrix:
         rust:
           # MSRV
-          - 1.60.0
+          - "1.72.1"
           - stable
         os: [ubuntu-latest, macos-latest, windows-latest]
         experimental: [false]
@@ -24,54 +24,45 @@ jobs:
             experimental: true
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-          components: llvm-tools-preview
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        shell: bash
+        run: |
+          rustup toolchain install ${{ matrix.rust }} --profile minimal
+          rustup default ${{ matrix.rust }}
+          rustup component add llvm-tools-preview clippy rustfmt
+          echo "::add-matcher::.github/workflows/rust.json"
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: rustfmt
+        run: cargo fmt --all -- --check
 
       - name: Build and install cargo-binutils
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --path . -f
+        run: cargo install --path . -f
 
       - name: Run cargo-nm
-        uses: actions-rs/cargo@v1
-        with:
-          command: nm
-          args: --bin cargo-nm -- --undefined-only
+        run: cargo nm --bin cargo-nm -- --undefined-only
 
       - name: Run cargo-objdump
-        uses: actions-rs/cargo@v1
-        with:
-          command: objdump
-          args: --bin cargo-objdump -- -h
+        run: cargo objdump --bin cargo-objdump -- -h
 
       - name: Run cargo-objcopy (on Linux only)
         if: matrix.os == 'ubuntu-latest'
-        uses: actions-rs/cargo@v1
-        with:
-          command: objcopy
-          args: --bin cargo-objdump -v -- -O binary objdump.bin
+        run: cargo objcopy --bin cargo-objdump -v -- -O binary objdump.bin
 
       - name: Run cargo-size
-        uses: actions-rs/cargo@v1
-        with:
-          command: size
-          args: --bin cargo-size -v
+        run: cargo size --bin cargo-size -v
 
       - name: Run cargo-strip (on Linux only)
         if: matrix.os == 'ubuntu-latest'
-        uses: actions-rs/cargo@v1
-        with:
-          command: strip
-          args: --bin cargo-strip -v
+        run: cargo strip --bin cargo-strip -v
+
   conclusion:
     runs-on: ubuntu-latest
     needs: ci
+    if: always()
     steps:
-      - name: Result
-        run: exit 0
+      - name: Done
+        run: jq --exit-status 'all(.result == "success")' <<< '${{ toJson(needs) }}'
