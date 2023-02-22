@@ -299,16 +299,18 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
         bail!("Unable to find workspace members");
     }
 
-    let target_artifact = if tool.needs_build() {
-        cargo_build(&matches, &metadata)?
-    } else {
-        None
-    };
-
     let mut tool_args = vec![];
     if let Some(args) = matches.values_of("args") {
         tool_args.extend(args);
     }
+
+    let tool_help = tool_args.first() == Some(&"--help");
+
+    let target_artifact = if tool.needs_build() && !tool_help {
+        cargo_build(&matches, &metadata)?
+    } else {
+        None
+    };
 
     let mut lltool = Command::new(format!("rust-{}", tool.name()));
 
