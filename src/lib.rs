@@ -355,7 +355,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
 
             match tool {
                 // Tools that don't need a build
-                Tool::Ar | Tool::Cov | Tool::Lld | Tool::Profdata => {}
+                Tool::Ar | Tool::As | Tool::Cov | Tool::Lld | Tool::Profdata => {}
                 // for some tools we change the CWD (current working directory) and
                 // make the artifact path relative. This makes the path that the
                 // tool will print easier to read. e.g. `libfoo.rlib` instead of
@@ -386,9 +386,13 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
 
     // post process output
     let processed_output = match tool {
-        Tool::Ar | Tool::Cov | Tool::Lld | Tool::Objcopy | Tool::Profdata | Tool::Strip => {
-            output.stdout.into()
-        }
+        Tool::Ar
+        | Tool::As
+        | Tool::Cov
+        | Tool::Lld
+        | Tool::Objcopy
+        | Tool::Profdata
+        | Tool::Strip => output.stdout.into(),
         Tool::Nm | Tool::Objdump | Tool::Readobj => postprocess::demangle(&output.stdout),
         Tool::Size => postprocess::size(&output.stdout),
     };
