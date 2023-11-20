@@ -13,7 +13,7 @@ name = "cargo-binutils"
 readme = "README.md"
 repository = "https://github.com/rust-embedded/cargo-binutils/"
 version = "0.3.6"
-rust-version = "1.72.1"
+rust-version = "1.70.0"
 
 [dependencies]
 cargo_metadata = "0.15"
