@@ -39,7 +39,7 @@ impl Tool {
 
     pub fn exe(self) -> String {
         match self {
-            Tool::Lld => format!("rust-lld{}", EXE_SUFFIX),
+            Tool::Lld => format!("rust-lld{EXE_SUFFIX}"),
             _ => format!("llvm-{}{}", self.name(), EXE_SUFFIX),
         }
     }
@@ -92,7 +92,7 @@ impl Tool {
 
         match crate::run(self, matches) {
             Err(e) => {
-                eprintln!("error: {}", e);
+                eprintln!("error: {e}");
                 process::exit(101)
             }
             Ok(ec) => process::exit(ec),

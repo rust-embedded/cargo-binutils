@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 use std::io::{self, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -8,7 +6,7 @@ use std::{env, str};
 use anyhow::{bail, Result};
 use cargo_metadata::camino::Utf8Component;
 use cargo_metadata::{Artifact, CargoOpt, Message, Metadata, MetadataCommand};
-use clap::{App, AppSettings, Arg, ArgMatches};
+use clap::{Arg, ArgAction, ArgMatches, Command as ClapCommand};
 use rustc_cfg::Cfg;
 
 pub use tool::Tool;
@@ -146,10 +144,7 @@ impl<'a> BuildType<'a> {
 
 fn args(tool: Tool, examples: Option<&str>) -> ArgMatches {
     let name = tool.name();
-    let about = format!(
-        "Proxy for the `llvm-{}` tool shipped with the Rust toolchain.",
-        name
-    );
+    let about = format!("Proxy for the `llvm-{name}` tool shipped with the Rust toolchain.");
     let after_help = format!(
         "\
 The arguments specified *after* the `--` will be passed to the proxied tool invocation.
@@ -159,119 +154,106 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
         examples.unwrap_or("")
     );
 
-    let app = App::new(format!("cargo-{}", name))
-        .about(&*about)
+    let app = ClapCommand::new(format!("cargo-{name}"))
+        .about(about)
         .version(env!("CARGO_PKG_VERSION"))
-        .settings(&[
-            AppSettings::UnifiedHelpMessage,
-            AppSettings::DeriveDisplayOrder,
-            AppSettings::DontCollapseArgsInUsage,
-        ])
         // as this is used as a Cargo subcommand the first argument will be the name of the binary
         // we ignore this argument
         .args(&[
-            Arg::with_name("binary-name").hidden(true),
-            Arg::with_name("verbose")
+            Arg::new("binary-name").hide(true),
+            Arg::new("verbose")
                 .long("verbose")
-                .short("v")
-                .multiple(true)
+                .short('v')
+                .action(ArgAction::Count)
                 .help("Use verbose output (-vv cargo verbose or -vvv for build.rs output)"),
-            Arg::with_name("args")
+            Arg::new("args")
                 .last(true)
-                .multiple(true)
+                .num_args(1..)
                 .help("The arguments to be proxied to the tool"),
         ])
-        .after_help(&*after_help);
+        .after_help(after_help);
 
     if tool.needs_build() {
         app.args(&[
-            Arg::with_name("quiet")
+            Arg::new("quiet")
                 .long("quiet")
-                .short("q")
+                .short('q')
                 .help("Don't print build output from `cargo build`"),
-            Arg::with_name("package")
+            Arg::new("package")
                 .long("package")
-                .short("p")
-                .takes_value(true)
+                .short('p')
                 .value_name("SPEC")
                 .help("Package to build (see `cargo help pkgid`)"),
-            Arg::with_name("jobs")
+            Arg::new("jobs")
                 .long("jobs")
-                .short("j")
+                .short('j')
                 .value_name("N")
                 .help("Number of parallel jobs, defaults to # of CPUs"),
-            Arg::with_name("lib")
+            Arg::new("lib")
                 .long("lib")
-                .conflicts_with_all(&["bin", "example", "test", "bench"])
+                .conflicts_with_all(["bin", "example", "test", "bench"])
                 .help("Build only this package's library"),
-            Arg::with_name("bin")
+            Arg::new("bin")
                 .long("bin")
-                .takes_value(true)
                 .value_name("NAME")
-                .conflicts_with_all(&["lib", "example", "test", "bench"])
+                .conflicts_with_all(["lib", "example", "test", "bench"])
                 .help("Build only the specified binary"),
-            Arg::with_name("example")
+            Arg::new("example")
                 .long("example")
-                .takes_value(true)
                 .value_name("NAME")
-                .conflicts_with_all(&["lib", "bin", "test", "bench"])
+                .conflicts_with_all(["lib", "bin", "test", "bench"])
                 .help("Build only the specified example"),
-            Arg::with_name("test")
+            Arg::new("test")
                 .long("test")
-                .takes_value(true)
                 .value_name("NAME")
-                .conflicts_with_all(&["lib", "bin", "example", "bench"])
+                .conflicts_with_all(["lib", "bin", "example", "bench"])
                 .help("Build only the specified test target"),
-            Arg::with_name("bench")
+            Arg::new("bench")
                 .long("bench")
-                .takes_value(true)
                 .value_name("NAME")
-                .conflicts_with_all(&["lib", "bin", "example", "test"])
+                .conflicts_with_all(["lib", "bin", "example", "test"])
                 .help("Build only the specified bench target"),
-            Arg::with_name("release")
+            Arg::new("release")
                 .long("release")
                 .help("Build artifacts in release mode, with optimizations"),
-            Arg::with_name("profile")
+            Arg::new("profile")
                 .long("profile")
                 .value_name("PROFILE-NAME")
                 .help("Build artifacts with the specified profile"),
-            Arg::with_name("features")
+            Arg::new("features")
                 .long("features")
-                .multiple(true)
-                .number_of_values(1)
-                .takes_value(true)
+                .short('F')
                 .value_name("FEATURES")
                 .help("Space-separated list of features to activate"),
-            Arg::with_name("all-features")
+            Arg::new("all-features")
                 .long("all-features")
                 .help("Activate all available features"),
-            Arg::with_name("no-default-features")
+            Arg::new("no-default-features")
                 .long("no-default-features")
                 .help("Do not activate the `default` feature"),
-            Arg::with_name("target")
+            Arg::new("target")
                 .long("target")
-                .takes_value(true)
                 .value_name("TRIPLE")
                 .help("Target triple for which the code is compiled"),
-            Arg::with_name("color")
+            Arg::new("color")
                 .long("color")
-                .takes_value(true)
-                .possible_values(&["auto", "always", "never"])
+                .action(ArgAction::Set)
+                .value_parser(clap::builder::PossibleValuesParser::new([
+                    "auto", "always", "never",
+                ]))
                 .help("Coloring: auto, always, never"),
-            Arg::with_name("frozen")
+            Arg::new("frozen")
                 .long("frozen")
                 .help("Require Cargo.lock and cache are up to date"),
-            Arg::with_name("locked")
+            Arg::new("locked")
                 .long("locked")
                 .help("Require Cargo.lock is up to date"),
-            Arg::with_name("offline")
+            Arg::new("offline")
                 .long("offline")
                 .help("Run without accessing the network"),
-            Arg::with_name("unstable-features")
-                .short("Z")
-                .multiple(true)
-                .number_of_values(1)
-                .takes_value(true)
+            Arg::new("unstable-features")
+                .short('Z')
+                .action(ArgAction::Append)
                 .value_name("FLAG")
                 .help("Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details"),
         ])
@@ -283,15 +265,15 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
 
 pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     let mut metadata_command = MetadataCommand::new();
-    if let Some(features) = matches.values_of("features") {
+    if let Some(features) = matches.get_many::<String>("features") {
         metadata_command.features(CargoOpt::SomeFeatures(
             features.map(|s| s.to_owned()).collect(),
         ));
     }
-    if matches.is_present("no-default-features") {
+    if matches.contains_id("no-default-features") {
         metadata_command.features(CargoOpt::NoDefaultFeatures);
     }
-    if matches.is_present("all-features") {
+    if matches.contains_id("all-features") {
         metadata_command.features(CargoOpt::AllFeatures);
     }
     let metadata = metadata_command.exec()?;
@@ -300,8 +282,8 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     }
 
     let mut tool_args = vec![];
-    if let Some(args) = matches.values_of("args") {
-        tool_args.extend(args);
+    if let Some(args) = matches.get_many::<String>("args") {
+        tool_args.extend(args.map(|s| s.as_str()));
     }
 
     let tool_help = tool_args.first() == Some(&"--help");
@@ -318,7 +300,10 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
         let ctxt = if let Some(artifact) = &target_artifact {
             Context::from_artifact(metadata, artifact)?
         } else {
-            Context::from_flag(metadata, matches.value_of("target"))?
+            Context::from_flag(
+                metadata,
+                matches.get_one::<String>("target").map(|s| s.as_str()),
+            )?
         };
 
         let arch_name = llvm::arch_name(&ctxt.cfg, &ctxt.target);
@@ -328,7 +313,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
             // `-triple=$target`, which contains more information about the target
             lltool.args(["--triple", &ctxt.target]);
         } else {
-            lltool.args(&[format!("--arch-name={}", arch_name)]);
+            lltool.args(&[format!("--arch-name={arch_name}")]);
         }
     }
 
@@ -375,8 +360,8 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     // User flags
     lltool.args(&tool_args);
 
-    if matches.is_present("verbose") {
-        eprintln!("{:?}", lltool);
+    if matches.contains_id("verbose") {
+        eprintln!("{lltool:?}");
     }
 
     let stdout = io::stdout();
@@ -408,13 +393,13 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
     cargo.arg("build");
 
     let (build_type, verbose) = cargo_build_args(matches, &mut cargo);
-    let quiet = matches.is_present("quiet");
+    let quiet = matches.contains_id("quiet");
 
     cargo.arg("--message-format=json");
     cargo.stdout(Stdio::piped());
 
     if verbose > 0 {
-        eprintln!("{:?}", cargo);
+        eprintln!("{cargo:?}");
     }
 
     let mut child = cargo.spawn()?;
@@ -445,7 +430,7 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
             Message::CompilerMessage(msg) => {
                 if !quiet || verbose > 1 {
                     if let Some(rendered) = msg.message.rendered {
-                        print!("{}", rendered);
+                        print!("{rendered}");
                     }
                 }
             }
@@ -460,90 +445,90 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
     Ok(target_artifact)
 }
 
-fn cargo_build_args<'a>(matches: &'a ArgMatches<'a>, cargo: &mut Command) -> (BuildType<'a>, u64) {
-    if matches.is_present("quiet") {
+fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildType<'a>, u64) {
+    if matches.contains_id("quiet") {
         cargo.arg("--quiet");
     }
 
-    if let Some(package) = matches.value_of("package") {
+    if let Some(package) = matches.get_one::<String>("package") {
         cargo.arg("--package");
         cargo.arg(package);
     }
 
-    if let Some(jobs) = matches.value_of("jobs") {
+    if let Some(jobs) = matches.get_one::<String>("jobs") {
         cargo.arg("-j");
         cargo.arg(jobs);
     }
 
-    let build_type = if matches.is_present("lib") {
+    let build_type = if matches.contains_id("lib") {
         cargo.args(["--lib"]);
         BuildType::Lib
-    } else if let Some(bin_name) = matches.value_of("bin") {
+    } else if let Some(bin_name) = matches.get_one::<String>("bin") {
         cargo.args(["--bin", bin_name]);
         BuildType::Bin(bin_name)
-    } else if let Some(example_name) = matches.value_of("example") {
+    } else if let Some(example_name) = matches.get_one::<String>("example") {
         cargo.args(["--example", example_name]);
         BuildType::Example(example_name)
-    } else if let Some(test_name) = matches.value_of("test") {
+    } else if let Some(test_name) = matches.get_one::<String>("test") {
         cargo.args(["--test", test_name]);
         BuildType::Test(test_name)
-    } else if let Some(bench_name) = matches.value_of("bench") {
+    } else if let Some(bench_name) = matches.get_one::<String>("bench") {
         cargo.args(["--bench", bench_name]);
         BuildType::Bench(bench_name)
     } else {
         BuildType::Any
     };
 
-    if matches.is_present("release") {
+    if matches.contains_id("release") {
         cargo.arg("--release");
     }
 
-    if let Some(profile) = matches.value_of("profile") {
+    if let Some(profile) = matches.get_one::<String>("profile") {
         cargo.arg("--profile");
         cargo.arg(profile);
     }
 
-    if let Some(features) = matches.values_of("features") {
+    if let Some(features) = matches.get_many::<String>("features") {
         for feature in features {
             cargo.args(["--features", feature]);
         }
     }
-    if matches.is_present("no-default-features") {
+    if matches.contains_id("no-default-features") {
         cargo.arg("--no-default-features");
     }
-    if matches.is_present("all-features") {
+    if matches.contains_id("all-features") {
         cargo.arg("--all-features");
     }
 
     // NOTE we do *not* use `project.target()` here because Cargo will figure things out on
     // its own (i.e. it will search and parse .cargo/config, etc.)
-    if let Some(target) = matches.value_of("target") {
+    if let Some(target) = matches.get_one::<String>("target") {
         cargo.args(["--target", target]);
     }
 
-    let verbose = matches.occurrences_of("verbose");
+    let verbose = matches.get_count("verbose") as u64;
     if verbose > 1 {
         cargo.arg(format!("-{}", "v".repeat((verbose - 1) as usize)));
     }
 
-    if let Some(color) = matches.value_of("color") {
+    if let Some(color) = matches.get_one::<String>("color") {
         cargo.arg("--color");
         cargo.arg(color);
     }
 
-    if matches.is_present("frozen") {
+    if matches.contains_id("frozen") {
         cargo.arg("--frozen");
     }
 
-    if matches.is_present("locked") {
+    if matches.contains_id("locked") {
         cargo.arg("--locked");
     }
 
-    if matches.is_present("offline") {
+    if matches.contains_id("offline") {
         cargo.arg("--offline");
     }
 
-    if let Some(unstable_features) = matches.values_of("unstable-features") {
+    if let Some(unstable_features) = matches.get_many::<String>("unstable-features") {
         for unstable_feature in unstable_features {
             cargo.args(["-Z", unstable_feature]);
         }

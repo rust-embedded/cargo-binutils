@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2021"
 authors = [
     "The Embedded WG Tools Team <tools@teams.rust-embedded.org>",
     "Jorge Aparicio <jorge@japaric.io>",
@@ -13,14 +13,15 @@ name = "cargo-binutils"
 readme = "README.md"
 repository = "https://github.com/rust-embedded/cargo-binutils/"
 version = "0.3.6"
+rust-version = "1.70.0"
 
 [dependencies]
-cargo_metadata = "0.15"
-clap = "2.34"
+cargo_metadata = "0.18.1"
+clap = { version = "4.4.8", features = ["cargo", "wrap_help", "string"] }
 regex = "1.5"
 rustc-cfg = "0.5"
 rustc-demangle = "0.1"
 rustc_version = "0.4"
 serde = "1.0"
-toml = "0.5"
+toml = "0.8.8"
 anyhow = "1.0"
