@@ -16,12 +16,12 @@ version = "0.3.6"
 rust-version = "1.70.0"
 
 [dependencies]
-cargo_metadata = "0.15"
-clap = { version = "4.1.4", features = ["cargo", "wrap_help", "string"] }
+cargo_metadata = "0.18.1"
+clap = { version = "4.4.8", features = ["cargo", "wrap_help", "string"] }
 regex = "1.5"
 rustc-cfg = "0.5"
 rustc-demangle = "0.1"
 rustc_version = "0.4"
 serde = "1.0"
-toml = "0.7.1"
+toml = "0.8.8"
 anyhow = "1.0"
