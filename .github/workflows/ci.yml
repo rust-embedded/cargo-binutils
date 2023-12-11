@@ -31,7 +31,7 @@ jobs:
         run: |
           rustup toolchain install ${{ matrix.rust }} --profile minimal
           rustup default ${{ matrix.rust }}
-          rustup component add llvm-tools-preview clippy rustfmt
+          rustup component add llvm-tools clippy rustfmt
           echo "::add-matcher::.github/workflows/rust.json"
 
       - name: Clippy
