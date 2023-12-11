@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- The `llvm-tools-preview` component was renamed to `llvm-tools`
+
 ### Changed
 
 - MSRV Changed to 1.70.0

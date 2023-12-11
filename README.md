@@ -17,7 +17,7 @@ This project is developed and maintained by the [Embedded WG Tools team][team].
 ``` console
 $ cargo install cargo-binutils
 
-$ rustup component add llvm-tools-preview
+$ rustup component add llvm-tools
 ```
 
 ## Usage
@@ -35,7 +35,7 @@ $ $(find $(rustc --print sysroot) -name llvm-$tool) ${args[@]}
 ```
 
 Apart from these `rust-*` tools, which are direct proxies for the llvm tools in
-the `llvm-tools-preview` component, the crate also provides some Cargo
+the `llvm-tools` component, the crate also provides some Cargo
 subcommands that will first build the project and then run the llvm tool on the
 output artifact. This:
 
@@ -71,7 +71,7 @@ artifact be automatically passed to the LLVM tool. This mode only works when the
 subcommand is used from within a Cargo project.
 
 *Disclaimer* Note that `cargo-binutils` simply proxies the LLVM tools in the
-`llvm-tools-preview` component and the Rust project makes no guarantee about the
+`llvm-tools` component and the Rust project makes no guarantee about the
 availability and the CLI of these tools -- i.e. the availability and CLI of
 these tools may change as new Rust releases are made.
 
