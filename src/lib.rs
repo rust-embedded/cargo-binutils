@@ -116,7 +116,7 @@ enum BuildType<'a> {
     Lib,
 }
 
-impl<'a> BuildType<'a> {
+impl BuildType<'_> {
     fn matches(&self, artifact: &Artifact) -> bool {
         match self {
             BuildType::Bin(target_name)
