@@ -178,6 +178,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
             Arg::new("quiet")
                 .long("quiet")
                 .short('q')
+                .action(ArgAction::SetTrue)
                 .help("Don't print build output from `cargo build`"),
             Arg::new("package")
                 .long("package")
@@ -191,6 +192,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .help("Number of parallel jobs, defaults to # of CPUs"),
             Arg::new("lib")
                 .long("lib")
+                .action(ArgAction::SetTrue)
                 .conflicts_with_all(["bin", "example", "test", "bench"])
                 .help("Build only this package's library"),
             Arg::new("bin")
@@ -215,6 +217,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .help("Build only the specified bench target"),
             Arg::new("release")
                 .long("release")
+                .action(ArgAction::SetTrue)
                 .help("Build artifacts in release mode, with optimizations"),
             Arg::new("profile")
                 .long("profile")
@@ -227,9 +230,11 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .help("Space-separated list of features to activate"),
             Arg::new("all-features")
                 .long("all-features")
+                .action(ArgAction::SetTrue)
                 .help("Activate all available features"),
             Arg::new("no-default-features")
                 .long("no-default-features")
+                .action(ArgAction::SetTrue)
                 .help("Do not activate the `default` feature"),
             Arg::new("target")
                 .long("target")
@@ -244,12 +249,15 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .help("Coloring: auto, always, never"),
             Arg::new("frozen")
                 .long("frozen")
+                .action(ArgAction::SetTrue)
                 .help("Require Cargo.lock and cache are up to date"),
             Arg::new("locked")
                 .long("locked")
+                .action(ArgAction::SetTrue)
                 .help("Require Cargo.lock is up to date"),
             Arg::new("offline")
                 .long("offline")
+                .action(ArgAction::SetTrue)
                 .help("Run without accessing the network"),
             Arg::new("unstable-features")
                 .short('Z')
@@ -270,10 +278,10 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
             features.map(|s| s.to_owned()).collect(),
         ));
     }
-    if matches.contains_id("no-default-features") {
+    if matches.get_flag("no-default-features") {
         metadata_command.features(CargoOpt::NoDefaultFeatures);
     }
-    if matches.contains_id("all-features") {
+    if matches.get_flag("all-features") {
         metadata_command.features(CargoOpt::AllFeatures);
     }
     let metadata = metadata_command.exec()?;
@@ -360,7 +368,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     // User flags
     lltool.args(&tool_args);
 
-    if matches.contains_id("verbose") {
+    if matches.get_flag("verbose") {
         eprintln!("{lltool:?}");
     }
 
@@ -397,7 +405,7 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
     cargo.arg("build");
 
     let (build_type, verbose) = cargo_build_args(matches, &mut cargo);
-    let quiet = matches.contains_id("quiet");
+    let quiet = matches.get_flag("quiet");
 
     cargo.arg("--message-format=json");
     cargo.stdout(Stdio::piped());
@@ -450,7 +458,7 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
 }
 
 fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildType<'a>, u64) {
-    if matches.contains_id("quiet") {
+    if matches.get_flag("quiet") {
         cargo.arg("--quiet");
     }
 
@@ -464,7 +472,7 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildT
         cargo.arg(jobs);
     }
 
-    let build_type = if matches.contains_id("lib") {
+    let build_type = if matches.get_flag("lib") {
         cargo.args(["--lib"]);
         BuildType::Lib
     } else if let Some(bin_name) = matches.get_one::<String>("bin") {
@@ -483,7 +491,7 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildT
         BuildType::Any
     };
 
-    if matches.contains_id("release") {
+    if matches.get_flag("release") {
         cargo.arg("--release");
     }
 
@@ -497,10 +505,10 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildT
             cargo.args(["--features", feature]);
         }
     }
-    if matches.contains_id("no-default-features") {
+    if matches.get_flag("no-default-features") {
         cargo.arg("--no-default-features");
     }
-    if matches.contains_id("all-features") {
+    if matches.get_flag("all-features") {
         cargo.arg("--all-features");
     }
 
@@ -520,15 +528,15 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildT
         cargo.arg(color);
     }
 
-    if matches.contains_id("frozen") {
+    if matches.get_flag("frozen") {
         cargo.arg("--frozen");
     }
 
-    if matches.contains_id("locked") {
+    if matches.get_flag("locked") {
         cargo.arg("--locked");
     }
 
-    if matches.contains_id("offline") {
+    if matches.get_flag("offline") {
         cargo.arg("--offline");
     }
 
