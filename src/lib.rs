@@ -220,6 +220,9 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .long("profile")
                 .value_name("PROFILE-NAME")
                 .help("Build artifacts with the specified profile"),
+            Arg::new("manifest-path")
+                .long("manifest-path")
+                .help("Path to Cargo.tom"),
             Arg::new("features")
                 .long("features")
                 .short('F')
@@ -490,6 +493,10 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildT
     if let Some(profile) = matches.get_one::<String>("profile") {
         cargo.arg("--profile");
         cargo.arg(profile);
+    }
+
+    if let Some(manifest_path) = matches.get_one::<String>("manifest-path") {
+        cargo.args(["--manifest-path", manifest_path]);
     }
 
     if let Some(features) = matches.get_many::<String>("features") {
