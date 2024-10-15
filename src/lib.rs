@@ -235,6 +235,10 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .long("target")
                 .value_name("TRIPLE")
                 .help("Target triple for which the code is compiled"),
+            Arg::new("config")
+                .long("config")
+                .value_name("CONFIG")
+                .help("Override a configuration value"),
             Arg::new("color")
                 .long("color")
                 .action(ArgAction::Set)
@@ -457,6 +461,12 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildT
     if let Some(package) = matches.get_one::<String>("package") {
         cargo.arg("--package");
         cargo.arg(package);
+    }
+
+    if let Some(config) = matches.get_many::<String>("config") {
+        for c in config {
+            cargo.args(["--config", c]);
+        }
     }
 
     if let Some(jobs) = matches.get_one::<String>("jobs") {
