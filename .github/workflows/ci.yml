@@ -41,7 +41,12 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Build and install cargo-binutils
+        if: matrix.rust == 'stable'
         run: cargo install --path . -f
+
+      - name: Build and install cargo-binutils (--locked)
+        if: matrix.rust != 'stable'
+        run: cargo install --locked --path . -f
 
       - name: Run cargo-nm
         run: cargo nm --bin cargo-nm -- --undefined-only
