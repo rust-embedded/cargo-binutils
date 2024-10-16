@@ -368,7 +368,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     // User flags
     lltool.args(&tool_args);
 
-    if matches.get_flag("verbose") {
+    if matches.get_count("verbose") > 0 {
         eprintln!("{lltool:?}");
     }
 
