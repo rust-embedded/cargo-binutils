@@ -414,7 +414,7 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
     let (build_type, verbose) = cargo_build_args(matches, &mut cargo);
     let quiet = matches.get_flag("quiet");
 
-    cargo.arg("--message-format=json");
+    cargo.arg("--message-format=json-diagnostic-rendered-ansi");
     cargo.stdout(Stdio::piped());
 
     if verbose > 0 {
