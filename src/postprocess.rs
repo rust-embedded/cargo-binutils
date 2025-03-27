@@ -38,7 +38,7 @@ pub fn size(bytes: &[u8]) -> Cow<[u8]> {
                     Some((needle, addr)) if line.starts_with('.') => {
                         let pos = line.rfind(needle).unwrap();
                         let hex_addr = format!("{addr:#x}");
-                        let start = pos + needle.as_bytes().len() - hex_addr.as_bytes().len();
+                        let start = pos + needle.len() - hex_addr.len();
 
                         format!("{}{}", &line[..start], hex_addr).into()
                     }
