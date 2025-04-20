@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed metadata error when using `--manifest-path` outside of a project folder. 
+
+### Changed
+
 - The `llvm-tools-preview` component was renamed to `llvm-tools`
 
 ### Changed
