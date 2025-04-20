@@ -291,6 +291,9 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     if matches.get_flag("all-features") {
         metadata_command.features(CargoOpt::AllFeatures);
     }
+    if let Some(path) = matches.get_one::<String>("manifest-path") {
+        metadata_command.manifest_path(path);
+    }
     let metadata = metadata_command.exec()?;
     if metadata.workspace_members.is_empty() {
         bail!("Unable to find workspace members");
