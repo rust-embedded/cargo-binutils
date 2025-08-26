@@ -23,7 +23,7 @@ pub fn demangle(bytes: &[u8]) -> Cow<'_, [u8]> {
 }
 
 // This pass turns the addresses in the output of `size -A` into hexadecimal format
-pub fn size(bytes: &[u8]) -> Cow<[u8]> {
+pub fn size(bytes: &[u8]) -> Cow<'_, [u8]> {
     if let Ok(text) = str::from_utf8(bytes) {
         let mut s = text
             .lines()
