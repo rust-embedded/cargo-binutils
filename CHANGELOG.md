@@ -7,28 +7,31 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.4.0] - 2025-08-26
+
+### Added
+
+- `cargo as` is now available (#137)
+
 ### Fixed
 
 - Fixed metadata error when using `--manifest-path` outside of a project folder. 
+- Fixed incorrect parsing of `-Z` flags causing them to not be considered (#128)
+- Improve help messages (#126, #131)
 
 ### Changed
 
 - The `llvm-tools-preview` component was renamed to `llvm-tools`
-
-### Changed
-
 - MSRV Changed to 1.70.0
 - Bump `rust-cfg` to 0.5, `cargo_metadata` to 0.18, `clap` to 4 and `toml` to 0.8
-
-### Fixed
-
-- Fixed incorrect parsing of `-Z` flags causing them to not be considered (#128)
+- Output better error messages on build failures (#154)
 
 ## [v0.3.6] - 2022-06-20
 
 ### Added
 
 - Action to build binaries and release for every version tag and latest commit
+- Support `--manifest-path` and `--config` args to Cargo (#146, #150)
 
 ### Changed
 
@@ -206,7 +209,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.6...HEAD
+[Unreleased]: https://github.com/rust-embedded/cargo-binutils/compare/v0.4.0...HEAD
+[v0.4.0]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.6...v0.4.0
 [v0.3.6]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/rust-embedded/cargo-binutils/compare/v0.3.3...v0.3.4
