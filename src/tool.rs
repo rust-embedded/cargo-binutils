@@ -10,6 +10,7 @@ use crate::rustc::rustlib;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
     Ar,
+    As,
     Cov,
     Lld,
     Nm,
@@ -25,6 +26,7 @@ impl Tool {
     pub fn name(self) -> &'static str {
         match self {
             Tool::Ar => "ar",
+            Tool::As => "as",
             Tool::Cov => "cov",
             Tool::Lld => "lld",
             Tool::Nm => "nm",
@@ -39,7 +41,7 @@ impl Tool {
 
     pub fn exe(self) -> String {
         match self {
-            Tool::Lld => format!("rust-lld{}", EXE_SUFFIX),
+            Tool::Lld => format!("rust-lld{EXE_SUFFIX}"),
             _ => format!("llvm-{}{}", self.name(), EXE_SUFFIX),
         }
     }
@@ -63,7 +65,11 @@ impl Tool {
         };
 
         if !path.exists() {
-            eprintln!("Could not find tool: {}\nat: {}\nConsider `rustup component add llvm-tools-preview`", self.name(), path.to_string_lossy());
+            eprintln!(
+                "Could not find tool: {}\nat: {}\nConsider `rustup component add llvm-tools`",
+                self.name(),
+                path.to_string_lossy()
+            );
             process::exit(102)
         };
 
@@ -92,7 +98,7 @@ impl Tool {
 
         match crate::run(self, matches) {
             Err(e) => {
-                eprintln!("error: {}", e);
+                eprintln!("error: {e}");
                 process::exit(101)
             }
             Ok(ec) => process::exit(ec),
@@ -102,7 +108,7 @@ impl Tool {
     // Whether this tool requires the project to be previously built
     pub fn needs_build(self) -> bool {
         match self {
-            Tool::Ar | Tool::Cov | Tool::Lld | Tool::Profdata => false,
+            Tool::Ar | Tool::As | Tool::Cov | Tool::Lld | Tool::Profdata => false,
             Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Readobj | Tool::Size | Tool::Strip => {
                 true
             }

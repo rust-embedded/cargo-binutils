@@ -7,11 +7,11 @@ use regex::{Captures, Regex};
 // UTF-8 then we don't touch it.
 
 // This pass demangles *all* the Rust symbols in the input
-pub fn demangle(bytes: &[u8]) -> Cow<[u8]> {
-    let re = Regex::new(r#"_Z.+?E\b"#).expect("BUG: Malformed Regex");
+pub fn demangle(bytes: &[u8]) -> Cow<'_, [u8]> {
+    let re = Regex::new(r"_Z.+?E\b").expect("BUG: Malformed Regex");
 
     if let Ok(text) = str::from_utf8(bytes) {
-        match re.replace_all(text, |cs: &Captures| {
+        match re.replace_all(text, |cs: &Captures<'_>| {
             format!("{}", rustc_demangle::demangle(cs.get(0).unwrap().as_str()))
         }) {
             Cow::Borrowed(s) => s.as_bytes().into(),
@@ -23,11 +23,11 @@ pub fn demangle(bytes: &[u8]) -> Cow<[u8]> {
 }
 
 // This pass turns the addresses in the output of `size -A` into hexadecimal format
-pub fn size(bytes: &[u8]) -> Cow<[u8]> {
+pub fn size(bytes: &[u8]) -> Cow<'_, [u8]> {
     if let Ok(text) = str::from_utf8(bytes) {
         let mut s = text
             .lines()
-            .map(|line| -> Cow<str> {
+            .map(|line| -> Cow<'_, str> {
                 match line
                     .split_whitespace()
                     .nth(2)
@@ -37,8 +37,8 @@ pub fn size(bytes: &[u8]) -> Cow<[u8]> {
                     // the second number is the address
                     Some((needle, addr)) if line.starts_with('.') => {
                         let pos = line.rfind(needle).unwrap();
-                        let hex_addr = format!("{:#x}", addr);
-                        let start = pos + needle.as_bytes().len() - hex_addr.as_bytes().len();
+                        let hex_addr = format!("{addr:#x}");
+                        let start = pos + needle.len() - hex_addr.len();
 
                         format!("{}{}", &line[..start], hex_addr).into()
                     }

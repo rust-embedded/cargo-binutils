@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed metadata error when using `--manifest-path` outside of a project folder. 
+
 ### Changed
 
-- MSRV Changed to 1.60
-- Bump `rust-cfg` to 0.5 and `cargo_metadata` to 0.15
+- The `llvm-tools-preview` component was renamed to `llvm-tools`
+
+### Changed
+
+- MSRV Changed to 1.70.0
+- Bump `rust-cfg` to 0.5, `cargo_metadata` to 0.18, `clap` to 4 and `toml` to 0.8
 
 ### Fixed
 
