@@ -48,6 +48,9 @@ jobs:
         if: matrix.rust != 'stable'
         run: cargo install --locked --path . -f
 
+      - name: run cargo-profdata --help
+        run: cargo profdata -- --help
+
       - name: Run cargo-nm
         run: cargo nm --bin cargo-nm -- --undefined-only
 
