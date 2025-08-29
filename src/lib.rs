@@ -280,16 +280,18 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
 
 pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     let mut metadata_command = MetadataCommand::new();
-    if let Some(features) = matches.get_many::<String>("features") {
-        metadata_command.features(CargoOpt::SomeFeatures(
-            features.map(|s| s.to_owned()).collect(),
-        ));
-    }
-    if matches.get_flag("no-default-features") {
-        metadata_command.features(CargoOpt::NoDefaultFeatures);
-    }
-    if matches.get_flag("all-features") {
-        metadata_command.features(CargoOpt::AllFeatures);
+    if tool.needs_build() {
+        if let Some(features) = matches.get_many::<String>("features") {
+            metadata_command.features(CargoOpt::SomeFeatures(
+                features.map(|s| s.to_owned()).collect(),
+            ));
+        }
+        if matches.get_flag("no-default-features") {
+            metadata_command.features(CargoOpt::NoDefaultFeatures);
+        }
+        if matches.get_flag("all-features") {
+            metadata_command.features(CargoOpt::AllFeatures);
+        }
     }
     if let Some(path) = matches.get_one::<String>("manifest-path") {
         metadata_command.manifest_path(path);
