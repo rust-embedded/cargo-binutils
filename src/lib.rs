@@ -449,7 +449,7 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
             Message::CompilerMessage(msg) => {
                 if !quiet || verbose > 1 {
                     if let Some(rendered) = msg.message.rendered {
-                        print!("{rendered}");
+                        eprint!("{rendered}");
                     }
                 }
             }
