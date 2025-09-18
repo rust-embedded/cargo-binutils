@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Redirected cargo build output to stderr instead of stdout. This prevents cargo/rustc messages and warnings from appearing in the stdout of cargo-binutils tools, making it easier to pipe or redirect tool output cleanly.
+
 ## [v0.4.0] - 2025-08-26
 
 ### Added
