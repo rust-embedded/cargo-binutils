@@ -170,6 +170,10 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .last(true)
                 .num_args(1..)
                 .help("The arguments to be proxied to the tool"),
+            // We look at .cargo/config.toml even when we don't build the binary.
+            Arg::new("manifest-path")
+                .long("manifest-path")
+                .help("Path to Cargo.tom"),
         ])
         .after_help(after_help);
 
@@ -223,9 +227,6 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
                 .long("profile")
                 .value_name("PROFILE-NAME")
                 .help("Build artifacts with the specified profile"),
-            Arg::new("manifest-path")
-                .long("manifest-path")
-                .help("Path to Cargo.tom"),
             Arg::new("features")
                 .long("features")
                 .short('F')
@@ -280,16 +281,18 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
 
 pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     let mut metadata_command = MetadataCommand::new();
-    if let Some(features) = matches.get_many::<String>("features") {
-        metadata_command.features(CargoOpt::SomeFeatures(
-            features.map(|s| s.to_owned()).collect(),
-        ));
-    }
-    if matches.get_flag("no-default-features") {
-        metadata_command.features(CargoOpt::NoDefaultFeatures);
-    }
-    if matches.get_flag("all-features") {
-        metadata_command.features(CargoOpt::AllFeatures);
+    if tool.needs_build() {
+        if let Some(features) = matches.get_many::<String>("features") {
+            metadata_command.features(CargoOpt::SomeFeatures(
+                features.map(|s| s.to_owned()).collect(),
+            ));
+        }
+        if matches.get_flag("no-default-features") {
+            metadata_command.features(CargoOpt::NoDefaultFeatures);
+        }
+        if matches.get_flag("all-features") {
+            metadata_command.features(CargoOpt::AllFeatures);
+        }
     }
     if let Some(path) = matches.get_one::<String>("manifest-path") {
         metadata_command.manifest_path(path);
