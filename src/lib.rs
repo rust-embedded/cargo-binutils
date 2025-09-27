@@ -45,7 +45,7 @@ pub struct Context {
 impl Context {
     /* Constructors */
     /// Get a context structure from a built artifact.
-    fn from_artifact(metadata: Metadata, artifact: &Artifact) -> Result<Self> {
+    fn from_artifact(metadata: &Metadata, artifact: &Artifact) -> Result<Self> {
         // Currently there is no clean way to get the target triple from cargo so we can only make
         // an approximation, we do this by extracting the target triple from the artifacts path.
         // For more info on the path structure see: https://doc.rust-lang.org/cargo/guide/build-cache.html
@@ -54,7 +54,7 @@ impl Context {
         // See: https://github.com/rust-lang/cargo/issues/5579, https://github.com/rust-lang/cargo/issues/8002
 
         // Should always succeed.
-        let target_path = artifact.filenames[0].strip_prefix(metadata.target_directory)?;
+        let target_path = artifact.filenames[0].strip_prefix(&metadata.target_directory)?;
         let target_name = if let Some(Utf8Component::Normal(path)) = target_path.components().next()
         {
             // TODO: How will custom profiles impact this?
@@ -279,7 +279,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
     }
 }
 
-pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
+fn get_metadata(tool: &Tool, matches: &ArgMatches) -> Result<Metadata> {
     let mut metadata_command = MetadataCommand::new();
     metadata_command.no_deps();
     if tool.needs_build() {
@@ -303,6 +303,10 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
         bail!("Unable to find workspace members");
     }
 
+    Ok(metadata)
+}
+
+pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     let mut tool_args = vec![];
     if let Some(args) = matches.get_many::<String>("args") {
         tool_args.extend(args.map(|s| s.as_str()));
@@ -311,7 +315,8 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     let tool_help = tool_args.first() == Some(&"--help");
 
     let target_artifact = if tool.needs_build() && !tool_help {
-        cargo_build(&matches, &metadata)?
+        let metadata = get_metadata(&tool, &matches)?;
+        cargo_build(&matches, &metadata)?.map(|a| (a, metadata))
     } else {
         None
     };
@@ -319,11 +324,11 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     let mut lltool = Command::new(format!("rust-{}", tool.name()));
 
     if tool == Tool::Objdump {
-        let ctxt = if let Some(artifact) = &target_artifact {
+        let ctxt = if let Some((artifact, metadata)) = &target_artifact {
             Context::from_artifact(metadata, artifact)?
         } else {
             Context::from_flag(
-                metadata,
+                get_metadata(&tool, &matches)?,
                 matches.get_one::<String>("target").map(|s| s.as_str()),
             )?
         };
@@ -348,7 +353,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
 
     if tool.needs_build() {
         // Artifact
-        if let Some(artifact) = &target_artifact {
+        if let Some((artifact, _)) = &target_artifact {
             let file = match &artifact.executable {
                 // Example and bins have an executable
                 Some(val) => val,
