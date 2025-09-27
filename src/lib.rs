@@ -1,3 +1,4 @@
+use std::borrow::ToOwned;
 use std::io::{self, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -74,7 +75,7 @@ impl Context {
 
     /// Get a context structure from a provided target flag, used when cargo
     /// was not used to build the binary.
-    fn from_flag(metadata: Metadata, target_flag: Option<&str>) -> Result<Self> {
+    fn from_flag(metadata: &Metadata, target_flag: Option<&str>) -> Result<Self> {
         let host_target_name = rustc_version::version_meta()?.host;
 
         // Get the "default" target override in .cargo/config.
@@ -100,7 +101,7 @@ impl Context {
     fn from_target_name(target_name: &str) -> Result<Self> {
         let cfg = Cfg::of(target_name)?;
 
-        Ok(Context {
+        Ok(Self {
             cfg,
             target: target_name.to_string(),
         })
@@ -279,13 +280,13 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
     }
 }
 
-fn get_metadata(tool: &Tool, matches: &ArgMatches) -> Result<Metadata> {
+fn get_metadata(tool: Tool, matches: &ArgMatches) -> Result<Metadata> {
     let mut metadata_command = MetadataCommand::new();
     metadata_command.no_deps();
     if tool.needs_build() {
         if let Some(features) = matches.get_many::<String>("features") {
             metadata_command.features(CargoOpt::SomeFeatures(
-                features.map(|s| s.to_owned()).collect(),
+                features.map(ToOwned::to_owned).collect(),
             ));
         }
         if matches.get_flag("no-default-features") {
@@ -306,17 +307,17 @@ fn get_metadata(tool: &Tool, matches: &ArgMatches) -> Result<Metadata> {
     Ok(metadata)
 }
 
-pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
+pub fn run(tool: Tool, matches: &ArgMatches) -> Result<i32> {
     let mut tool_args = vec![];
     if let Some(args) = matches.get_many::<String>("args") {
-        tool_args.extend(args.map(|s| s.as_str()));
+        tool_args.extend(args.map(String::as_str));
     }
 
     let tool_help = tool_args.first() == Some(&"--help");
 
     let target_artifact = if tool.needs_build() && !tool_help {
-        let metadata = get_metadata(&tool, &matches)?;
-        cargo_build(&matches, &metadata)?.map(|a| (a, metadata))
+        let metadata = get_metadata(tool, matches)?;
+        cargo_build(matches, &metadata)?.map(|a| (a, metadata))
     } else {
         None
     };
@@ -328,8 +329,8 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
             Context::from_artifact(metadata, artifact)?
         } else {
             Context::from_flag(
-                get_metadata(&tool, &matches)?,
-                matches.get_one::<String>("target").map(|s| s.as_str()),
+                &get_metadata(tool, matches)?,
+                matches.get_one::<String>("target").map(String::as_str),
             )?
         };
 
@@ -345,7 +346,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     }
 
     // Extra flags
-    if let Tool::Readobj = tool {
+    if tool == Tool::Readobj {
         // The default output style of `readobj` is JSON-like, which is not user friendly, so we
         // change it to the human readable GNU style
         lltool.arg("--elf-output-style=GNU");
@@ -354,23 +355,23 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     if tool.needs_build() {
         // Artifact
         if let Some((artifact, _)) = &target_artifact {
-            let file = match &artifact.executable {
-                // Example and bins have an executable
-                Some(val) => val,
-                // Libs have an rlib and an rmeta. We want the rlib, which always
-                // comes first in the filenames array after some quick testing.
-                //
-                // We could instead look for files ending in .rlib, but that would
-                // fail for cdylib and other fancy crate kinds.
-                None => &artifact.filenames[0],
-            };
+            // Example and bins have an executable while libs have an rlib and an rmeta. We
+            // want the rlib, which always comes first in the filenames array after some quick
+            // testing.
+            //
+            // We could instead look for files ending in .rlib, but that would
+            // fail for cdylib and other fancy crate kinds.
+            let file = artifact
+                .executable
+                .as_ref()
+                .map_or_else(|| &artifact.filenames[0], |val| val);
 
             match tool {
                 // Tools that don't need a build
                 Tool::Ar | Tool::As | Tool::Cov | Tool::Lld | Tool::Profdata => {}
                 // for some tools we change the CWD (current working directory) and
                 // make the artifact path relative. This makes the path that the
-                // tool will print easier to read. e.g. `libfoo.rlib` instead of
+                // tool will print easier to read. eg. `libfoo.rlib` instead of
                 // `/home/user/rust/project/target/$T/debug/libfoo.rlib`.
                 Tool::Objdump | Tool::Nm | Tool::Readobj | Tool::Size => {
                     lltool
@@ -551,7 +552,7 @@ fn cargo_build_args<'a>(matches: &'a ArgMatches, cargo: &mut Command) -> (BuildT
         cargo.args(["--target", target]);
     }
 
-    let verbose = matches.get_count("verbose") as u64;
+    let verbose = u64::from(matches.get_count("verbose"));
     if verbose > 1 {
         cargo.arg(format!("-{}", "v".repeat((verbose - 1) as usize)));
     }
