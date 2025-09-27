@@ -23,25 +23,27 @@ pub enum Tool {
 }
 
 impl Tool {
-    pub fn name(self) -> &'static str {
+    #[must_use]
+    pub const fn name(self) -> &'static str {
         match self {
-            Tool::Ar => "ar",
-            Tool::As => "as",
-            Tool::Cov => "cov",
-            Tool::Lld => "lld",
-            Tool::Nm => "nm",
-            Tool::Objcopy => "objcopy",
-            Tool::Objdump => "objdump",
-            Tool::Profdata => "profdata",
-            Tool::Readobj => "readobj",
-            Tool::Size => "size",
-            Tool::Strip => "strip",
+            Self::Ar => "ar",
+            Self::As => "as",
+            Self::Cov => "cov",
+            Self::Lld => "lld",
+            Self::Nm => "nm",
+            Self::Objcopy => "objcopy",
+            Self::Objdump => "objdump",
+            Self::Profdata => "profdata",
+            Self::Readobj => "readobj",
+            Self::Size => "size",
+            Self::Strip => "strip",
         }
     }
 
+    #[must_use]
     pub fn exe(self) -> String {
         match self {
-            Tool::Lld => format!("rust-lld{EXE_SUFFIX}"),
+            Self::Lld => format!("rust-lld{EXE_SUFFIX}"),
             _ => format!("llvm-{}{}", self.name(), EXE_SUFFIX),
         }
     }
@@ -71,7 +73,7 @@ impl Tool {
                 path.to_string_lossy()
             );
             process::exit(102)
-        };
+        }
 
         // Note: The first argument is the name of the binary (e.g. `rust-nm`)
         let args = env::args().skip(1);
@@ -96,7 +98,7 @@ impl Tool {
     pub fn cargo_exec(self, examples: Option<&str>) -> ! {
         let matches = crate::args(self, examples);
 
-        match crate::run(self, matches) {
+        match crate::run(self, &matches) {
             Err(e) => {
                 eprintln!("error: {e}");
                 process::exit(101)
@@ -106,10 +108,11 @@ impl Tool {
     }
 
     // Whether this tool requires the project to be previously built
-    pub fn needs_build(self) -> bool {
+    #[must_use]
+    pub const fn needs_build(self) -> bool {
         match self {
-            Tool::Ar | Tool::As | Tool::Cov | Tool::Lld | Tool::Profdata => false,
-            Tool::Nm | Tool::Objcopy | Tool::Objdump | Tool::Readobj | Tool::Size | Tool::Strip => {
+            Self::Ar | Self::As | Self::Cov | Self::Lld | Self::Profdata => false,
+            Self::Nm | Self::Objcopy | Self::Objdump | Self::Readobj | Self::Size | Self::Strip => {
                 true
             }
         }
