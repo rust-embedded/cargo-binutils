@@ -209,7 +209,7 @@ linker = "rust-lld"
 
 ## Minimum Supported Rust Version (MSRV)
 
-This crate is guaranteed to compile on stable Rust 1.70.0 and up.
+This crate is guaranteed to compile on stable Rust 1.76.0 and up.
 
 ## License
 

@@ -5,7 +5,7 @@ use std::{env, str};
 
 use anyhow::{bail, Result};
 use cargo_metadata::camino::Utf8Component;
-use cargo_metadata::{Artifact, CargoOpt, Message, Metadata, MetadataCommand};
+use cargo_metadata::{Artifact, CargoOpt, Message, Metadata, MetadataCommand, TargetKind};
 use clap::{Arg, ArgAction, ArgMatches, Command as ClapCommand};
 use rustc_cfg::Cfg;
 
@@ -133,10 +133,14 @@ impl BuildType<'_> {
                 .target
                 .kind
                 .iter()
-                .any(|s| s == "bin" || s == "example"),
+                .any(|s| *s == TargetKind::Bin || *s == TargetKind::Example),
             // Since LibKind can be an arbitrary string `LibKind:Other(String)` we filter by what it can't be
             BuildType::Lib => artifact.target.kind.iter().any(|s| {
-                s != "bin" && s != "example" && s != "test" && s != "custom-build" && s != "bench"
+                *s != TargetKind::Bin
+                    && *s != TargetKind::Example
+                    && *s != TargetKind::Test
+                    && *s != TargetKind::CustomBuild
+                    && *s != TargetKind::Bench
             }),
         }
     }
@@ -279,7 +283,7 @@ To see all the flags the proxied tool accepts run `cargo-{} -- --help`.{}",
     }
 }
 
-fn get_metadata(tool: &Tool, matches: &ArgMatches) -> Result<Metadata> {
+fn get_metadata(tool: Tool, matches: &ArgMatches) -> Result<Metadata> {
     let mut metadata_command = MetadataCommand::new();
     metadata_command.no_deps();
     if tool.needs_build() {
@@ -315,7 +319,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
     let tool_help = tool_args.first() == Some(&"--help");
 
     let target_artifact = if tool.needs_build() && !tool_help {
-        let metadata = get_metadata(&tool, &matches)?;
+        let metadata = get_metadata(tool, &matches)?;
         cargo_build(&matches, &metadata)?.map(|a| (a, metadata))
     } else {
         None
@@ -328,7 +332,7 @@ pub fn run(tool: Tool, matches: ArgMatches) -> Result<i32> {
             Context::from_artifact(metadata, artifact)?
         } else {
             Context::from_flag(
-                get_metadata(&tool, &matches)?,
+                get_metadata(tool, &matches)?,
                 matches.get_one::<String>("target").map(|s| s.as_str()),
             )?
         };

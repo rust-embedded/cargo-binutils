@@ -13,15 +13,15 @@ name = "cargo-binutils"
 readme = "README.md"
 repository = "https://github.com/rust-embedded/cargo-binutils/"
 version = "0.4.0"
-rust-version = "1.70.0"
+rust-version = "1.76.0"
 
 [dependencies]
-cargo_metadata = "0.18.1"
+cargo_metadata = "0.22"
 clap = { version = "4.4.8", features = ["cargo", "wrap_help", "string"] }
 regex = "1.5"
 rustc-cfg = "0.5"
 rustc-demangle = "0.1"
 rustc_version = "0.4"
 serde = "1.0"
-toml = "0.8.8"
+toml = { version = "0.9", default-features = false, features = ["serde", "parse"] }
 anyhow = "1.0"
