@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `toml` to 0.9
+- MSRV Changed to 1.78.0
+
 ### Fixed
 
 - Redirected cargo build output to stderr instead of stdout. This prevents cargo/rustc messages and warnings from appearing in the stdout of cargo-binutils tools, making it easier to pipe or redirect tool output cleanly.
