@@ -18,6 +18,7 @@ pub enum Tool {
     Objdump,
     Profdata,
     Readobj,
+    Readelf,
     Size,
     Strip,
 }
@@ -35,6 +36,7 @@ impl Tool {
             Self::Objdump => "objdump",
             Self::Profdata => "profdata",
             Self::Readobj => "readobj",
+            Self::Readelf => "readelf",
             Self::Size => "size",
             Self::Strip => "strip",
         }
@@ -112,9 +114,13 @@ impl Tool {
     pub const fn needs_build(self) -> bool {
         match self {
             Self::Ar | Self::As | Self::Cov | Self::Lld | Self::Profdata => false,
-            Self::Nm | Self::Objcopy | Self::Objdump | Self::Readobj | Self::Size | Self::Strip => {
-                true
-            }
+            Self::Nm
+            | Self::Objcopy
+            | Self::Objdump
+            | Self::Readobj
+            | Self::Readelf
+            | Self::Size
+            | Self::Strip => true,
         }
     }
 }

@@ -373,7 +373,7 @@ pub fn run(tool: Tool, matches: &ArgMatches) -> Result<i32> {
                 // make the artifact path relative. This makes the path that the
                 // tool will print easier to read. eg. `libfoo.rlib` instead of
                 // `/home/user/rust/project/target/$T/debug/libfoo.rlib`.
-                Tool::Objdump | Tool::Nm | Tool::Readobj | Tool::Size => {
+                Tool::Objdump | Tool::Nm | Tool::Readobj | Tool::Readelf | Tool::Size => {
                     lltool
                         .current_dir(file.parent().unwrap())
                         .arg(file.file_name().unwrap());
@@ -409,7 +409,9 @@ pub fn run(tool: Tool, matches: &ArgMatches) -> Result<i32> {
         | Tool::Objcopy
         | Tool::Profdata
         | Tool::Strip => output.stdout.into(),
-        Tool::Nm | Tool::Objdump | Tool::Readobj => postprocess::demangle(&output.stdout),
+        Tool::Nm | Tool::Objdump | Tool::Readobj | Tool::Readelf => {
+            postprocess::demangle(&output.stdout)
+        }
         Tool::Size => postprocess::size(&output.stdout),
     };
 
@@ -448,22 +450,19 @@ fn cargo_build(matches: &ArgMatches, metadata: &Metadata) -> Result<Option<Artif
     let mut target_artifact: Option<Artifact> = None;
     for message in messages {
         match message? {
-            Message::CompilerArtifact(artifact) => {
+            Message::CompilerArtifact(artifact)
                 if metadata.workspace_members.contains(&artifact.package_id)
-                    && build_type.matches(&artifact)
-                {
-                    if target_artifact.is_some() {
-                        bail!("Can only have one matching artifact but found several");
-                    }
-
-                    target_artifact = Some(artifact);
+                    && build_type.matches(&artifact) =>
+            {
+                if target_artifact.is_some() {
+                    bail!("Can only have one matching artifact but found several");
                 }
+
+                target_artifact = Some(artifact);
             }
-            Message::CompilerMessage(msg) => {
-                if !quiet || verbose > 1 {
-                    if let Some(rendered) = msg.message.rendered {
-                        eprint!("{rendered}");
-                    }
+            Message::CompilerMessage(msg) if (!quiet || verbose > 1) => {
+                if let Some(rendered) = msg.message.rendered {
+                    eprint!("{rendered}");
                 }
             }
             _ => (),
