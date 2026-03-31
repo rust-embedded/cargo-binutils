@@ -16,7 +16,7 @@ version = "0.4.0"
 rust-version = "1.78.0"
 
 [dependencies]
-cargo_metadata = "0.18.1"
+cargo_metadata = "0.23"
 clap = { version = "4.4.8", features = ["cargo", "wrap_help", "string"] }
 regex = "1.5"
 rustc-cfg = "0.5"
